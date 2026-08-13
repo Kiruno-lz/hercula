@@ -1,0 +1,13 @@
+.idea/
+.DS_Store
+.hvigor/
+.preview/
+build/
+entry/build/
+oh_modules/
+node_modules/
+*.hsp
+*.hap
+*.app
+local.properties
+signingConfigs/

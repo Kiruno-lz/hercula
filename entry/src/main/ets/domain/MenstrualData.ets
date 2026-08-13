@@ -1,0 +1,100 @@
+import { addDays, dayDistance, isValidDateKey, parseDateKey, toDateKey } from './DateUtils';
+
+export interface MenstrualDay {
+  date: string;
+  source: 'manual' | 'import';
+}
+
+export interface PeriodSummary {
+  startDate: string;
+  endDate: string;
+  durationDays: number;
+  ongoing: boolean;
+}
+
+export interface Prediction {
+  label: string;
+  available: boolean;
+}
+
+export interface CalendarCell {
+  key: string;
+  day: number;
+  date: string;
+  inCurrentMonth: boolean;
+}
+
+export function normalizeDays(days: Array<MenstrualDay>): Array<MenstrualDay> {
+  const byDate: Map<string, MenstrualDay> = new Map<string, MenstrualDay>();
+  days.forEach((item: MenstrualDay) => {
+    if (isValidDateKey(item.date)) {
+      byDate.set(item.date, item);
+    }
+  });
+  const dates: Array<string> = Array.from(byDate.keys()).sort();
+  return dates.map((date: string): MenstrualDay => {
+    return byDate.get(date) as MenstrualDay;
+  });
+}
+
+export function derivePeriods(days: Array<MenstrualDay>, today: string): Array<PeriodSummary> {
+  const normalized: Array<MenstrualDay> = normalizeDays(days);
+  const result: Array<PeriodSummary> = [];
+  normalized.forEach((item: MenstrualDay) => {
+    const last: PeriodSummary | undefined = result[result.length - 1];
+    if (last === undefined || dayDistance(last.endDate, item.date) !== 1) {
+      result.push({
+        startDate: item.date,
+        endDate: item.date,
+        durationDays: 1,
+        ongoing: item.date === today
+      });
+      return;
+    }
+    last.endDate = item.date;
+    last.durationDays += 1;
+    last.ongoing = item.date === today;
+  });
+  return result;
+}
+
+export function buildCalendarCells(year: number, month: number): Array<CalendarCell> {
+  const firstDay: Date = new Date(year, month, 1);
+  const firstMondayOffset: number = (firstDay.getDay() + 6) % 7;
+  const start: Date = new Date(year, month, 1 - firstMondayOffset);
+  const cells: Array<CalendarCell> = [];
+  for (let index: number = 0; index < 42; index += 1) {
+    const date: Date = new Date(start.getFullYear(), start.getMonth(), start.getDate() + index);
+    const dateKey: string = toDateKey(date);
+    cells.push({
+      key: dateKey,
+      day: date.getDate(),
+      date: dateKey,
+      inCurrentMonth: date.getMonth() === month
+    });
+  }
+  return cells;
+}
+
+export function predictNextPeriod(periods: Array<PeriodSummary>): Prediction {
+  const completed: Array<PeriodSummary> = periods.filter((period: PeriodSummary): boolean => !period.ongoing);
+  if (completed.length < 3) {
+    return { available: false, label: '记录更多完整周期后显示估算' };
+  }
+  const cycleLengths: Array<number> = [];
+  for (let index: number = 1; index < completed.length; index += 1) {
+    cycleLengths.push(dayDistance(completed[index - 1].startDate, completed[index].startDate));
+  }
+  if (cycleLengths.length < 2) {
+    return { available: false, label: '记录更多完整周期后显示估算' };
+  }
+  const sorted: Array<number> = cycleLengths.sort((a: number, b: number): number => a - b);
+  const median: number = sorted[Math.floor(sorted.length / 2)];
+  const last: PeriodSummary = completed[completed.length - 1];
+  const predicted: string = addDays(last.startDate, median);
+  const date: Date = parseDateKey(predicted);
+  return {
+    available: true,
+    label: `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日左右`
+  };
+}
