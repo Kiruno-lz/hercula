@@ -9,6 +9,6 @@
 
 ## 结论摘要
 
-推荐技术栈为 DevEco Studio + ArkTS + ArkUI + Stage/UIAbility + Hvigor。首版只使用系统 UI、Preferences、文件 Picker、JSON 标准能力和自绘图表，不使用网络、第三方图表库、WebView 或云端 AI。
+推荐技术栈为 DevEco Studio + ArkTS + ArkUI + Stage/UIAbility + Hvigor。首版只使用系统 UI、Preferences、文件 Picker、JSON 标准能力和基础布局自绘图表，不使用网络、第三方图表库、WebView 或云端 AI。
 
 版本号不在这里硬编码：HarmonyOS、DevEco Studio 和 SDK 更新频繁，创建工程时应从官方稳定下载页选择兼容组合，并把实际版本写入工程 README/构建记录。

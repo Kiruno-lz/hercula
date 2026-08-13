@@ -16,7 +16,7 @@ ArkTS 是 HarmonyOS 应用开发的官方语言，保留 TypeScript 风格但增
 
 ### ArkUI
 
-ArkUI 是声明式 UI 框架，负责组件、布局、状态、动画和手势。月历、分页、弹窗、Canvas 都可以留在 ArkUI 内完成，不需要引入 Web 技术。
+ArkUI 是声明式 UI 框架，负责组件、布局、状态、动画和手势。月历、分页、弹窗和水平柱状图都可以留在 ArkUI 内完成，不需要引入 Web 技术。
 
 官方入口：[HarmonyOS 设计与开发](https://developer.huawei.com/consumer/cn/app/planning)、[HarmonyOS 设计资源](https://developer.huawei.com/consumer/cn/design/)
 
