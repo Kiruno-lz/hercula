@@ -1,6 +1,6 @@
 {
   "name": "entry",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "月迹应用入口模块",
   "main": "Index.ets"
 }

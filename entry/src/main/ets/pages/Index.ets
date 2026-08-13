@@ -1,5 +1,6 @@
 import { common } from '@kit.AbilityKit';
 import { PreferencesStore } from '../data/PreferencesStore';
+import { JsonImportResult, JsonTransfer } from '../data/JsonTransfer';
 import {
   buildCalendarCells,
   CalendarCell,
@@ -186,7 +187,9 @@ struct Index {
         .borderRadius(22)
         .height(46)
         .width('100%')
-        .onClick((): void => this.toggleToday())
+        .onClick((): void => {
+          this.toggleToday();
+        })
 
       if (this.feedback.length > 0) {
         Text(this.feedback)
@@ -206,20 +209,18 @@ struct Index {
 
   @Builder
   private buildHistoryPage() {
-    const periods: Array<PeriodSummary> = derivePeriods(this.markedDays, todayKey());
-    const prediction = predictNextPeriod(periods);
     Column({ space: 18 }) {
       Text('月经历史')
         .fontSize(26)
         .fontWeight(FontWeight.Bold)
         .fontColor(TEXT_COLOR)
         .width('100%')
-      Text(`${periods.length} 次记录 · 无边框水平统计`)
+      Text(`${this.currentPeriods().length} 次记录 · 无边框水平统计`)
         .fontSize(14)
         .fontColor('#8E7B82')
         .width('100%')
 
-      if (periods.length === 0) {
+      if (this.currentPeriods().length === 0) {
         Column({ space: 10 }) {
           Text('先记录今天，月迹会慢慢形成')
             .fontSize(17)
@@ -233,8 +234,8 @@ struct Index {
         .width('100%')
       } else {
         Column({ space: 14 }) {
-          ForEach(periods.slice(-8), (period: PeriodSummary) => {
-            this.buildPeriodRow(period, periods)
+          ForEach(this.currentPeriods().slice(-8), (period: PeriodSummary) => {
+            this.buildPeriodRow(period)
           }, (period: PeriodSummary): string => period.startDate)
         }
         .width('100%')
@@ -244,7 +245,7 @@ struct Index {
         Text('下一次预计')
           .fontSize(14)
           .fontColor(ACCENT_COLOR)
-        Text(prediction.label)
+        Text(this.currentPrediction().label)
           .fontSize(18)
           .fontColor(TEXT_COLOR)
         Text('根据已记录历史估算，仅供记录参考')
@@ -261,14 +262,18 @@ struct Index {
           .fontColor(ACCENT_COLOR)
           .backgroundColor('#EAD1D6')
           .borderRadius(22)
-          .onClick((): void => this.showComingSoon('导入功能将在下一阶段接入'))
+          .onClick((): void => {
+            this.importJson();
+          })
         Button('导出')
           .layoutWeight(1)
           .height(44)
           .fontColor(Color.White)
           .backgroundColor(ACCENT_COLOR)
           .borderRadius(22)
-          .onClick((): void => this.showComingSoon('导出功能将在下一阶段接入'))
+          .onClick((): void => {
+            this.exportJson();
+          })
       }
       .width('100%')
 
@@ -283,12 +288,7 @@ struct Index {
   }
 
   @Builder
-  private buildPeriodRow(period: PeriodSummary, periods: Array<PeriodSummary>) {
-    let maxDuration: number = 1;
-    periods.forEach((item: PeriodSummary): void => {
-      maxDuration = Math.max(maxDuration, item.durationDays);
-    });
-    const ratio: number = Math.max(period.durationDays / maxDuration, 0.08);
+  private buildPeriodRow(period: PeriodSummary) {
     Row({ space: 8 }) {
       Text(formatShortDate(period.startDate))
         .fontSize(12)
@@ -297,7 +297,7 @@ struct Index {
       Row({ space: 8 }) {
         Row()
           .height(18)
-          .width(`${ratio * 100}%`)
+          .width(`${this.periodRatio(period) * 100}%`)
           .borderRadius(9)
           .backgroundColor(period.ongoing ? ACCENT_COLOR : PERIOD_COLOR)
         Text(period.ongoing ? '进行中' : `${period.durationDays}天`)
@@ -312,6 +312,22 @@ struct Index {
 
   private calendarCells(): Array<CalendarCell> {
     return buildCalendarCells(this.calendarDate.getFullYear(), this.calendarDate.getMonth());
+  }
+
+  private currentPeriods(): Array<PeriodSummary> {
+    return derivePeriods(this.markedDays, todayKey());
+  }
+
+  private currentPrediction() {
+    return predictNextPeriod(this.currentPeriods());
+  }
+
+  private periodRatio(period: PeriodSummary): number {
+    let maxDuration: number = 1;
+    this.currentPeriods().forEach((item: PeriodSummary): void => {
+      maxDuration = Math.max(maxDuration, item.durationDays);
+    });
+    return Math.max(period.durationDays / maxDuration, 0.08);
   }
 
   private dayColor(date: string): string {
@@ -330,7 +346,51 @@ struct Index {
     return this.hasDate(todayKey()) ? '今天已记录 · 再次点击撤销' : '记录今天来月经';
   }
 
-  private showComingSoon(message: string): void {
-    this.feedback = message;
+  private async importJson(): Promise<void> {
+    try {
+      const context: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+      const result: JsonImportResult | undefined = await JsonTransfer.import(context);
+      if (result === undefined) {
+        this.feedback = '未导入文件，原有记录未改变';
+        return;
+      }
+      const existingDates: Set<string> = new Set<string>();
+      this.markedDays.forEach((item: MenstrualDay): void => {
+        existingDates.add(item.date);
+      });
+      const newCount: number = result.days.filter((item: MenstrualDay): boolean => !existingDates.has(item.date)).length;
+      AlertDialog.show({
+        title: '导入预览',
+        message: `文件中有 ${result.days.length} 个有效日期，将新增 ${newCount} 个日期。`,
+        primaryButton: {
+          value: '取消',
+          action: (): void => {}
+        },
+        secondaryButton: {
+          value: '确认导入',
+          action: (): void => {
+            this.applyImportedDays(result.days);
+          }
+        }
+      });
+    } catch (_error) {
+      this.feedback = '导入失败：请确认文件是月迹 JSON';
+    }
+  }
+
+  private async applyImportedDays(days: Array<MenstrualDay>): Promise<void> {
+    this.markedDays = this.markedDays.concat(days);
+    await this.persistDays();
+    this.feedback = `已导入并合并 ${days.length} 个日期`;
+  }
+
+  private async exportJson(): Promise<void> {
+    try {
+      const context: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+      const saved: boolean = await JsonTransfer.export(context, this.markedDays);
+      this.feedback = saved ? '已导出月迹 JSON' : '已取消导出';
+    } catch (_error) {
+      this.feedback = '导出失败，请稍后重试';
+    }
   }
 }

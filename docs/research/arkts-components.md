@@ -40,6 +40,8 @@
 
 官方参考：[文件处理应用](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/file-processing-apps-startup)、[文件与用户文件概览](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/application-package-glossary)
 
+当前工程以已安装 SDK 的 Kit 声明为准：导入使用 `picker.DocumentSelectOptions.fileSuffixFilters` 和 `DocumentViewPicker.select()`，导出使用 `picker.DocumentSaveOptions.fileSuffixChoices` 和 `DocumentViewPicker.save()`，内容读写使用 `fileIo.openSync/readSync/writeSync/closeSync`。选择器返回的 URI 只在用户授权生命周期内有效，不能把它当作永久路径保存。
+
 ## 4. JSON 与本地文本解析
 
 ArkTS 标准能力足以完成 JSON 的序列化、反序列化和 schema 校验。不要把 JSON 解析当作“AI 解析”；二者是不同的可靠性等级。
@@ -50,6 +52,8 @@ ArkTS 标准能力足以完成 JSON 的序列化、反序列化和 schema 校验
 - 文本解析只提取明确日期候选，保留原文行和错误。
 - 每次导入先预览，不直接覆盖。
 - 合并以日期去重，旧数据保留。
+
+当前第一版已实现 schema `1` 的 JSON 文件导入导出，导入文件限制为 JSON 且读取上限为 4 MiB；文本解析和粘贴入口保留在下一阶段，不将当前 JSON 能力描述为“任意文本导入”。
 
 ## 5. 端侧 AI 的边界
 

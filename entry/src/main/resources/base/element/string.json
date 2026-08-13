@@ -1,10 +1,6 @@
 {
   "string": [
     {
-      "name": "app_name",
-      "value": "月迹"
-    },
-    {
       "name": "module_desc",
       "value": "月迹月经周期记录"
     },

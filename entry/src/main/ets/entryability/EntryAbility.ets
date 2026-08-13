@@ -1,4 +1,5 @@
-import { UIAbility, AbilityConstant, Want, window } from '@kit.AbilityKit';
+import { UIAbility, AbilityConstant, Want } from '@kit.AbilityKit';
+import { window } from '@kit.ArkUI';
 import { BusinessError } from '@kit.BasicServicesKit';
 
 export default class EntryAbility extends UIAbility {
