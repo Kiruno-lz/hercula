@@ -1,5 +1,5 @@
 import { preferences } from '@kit.ArkData';
-import { Context } from '@kit.AbilityKit';
+import { common } from '@kit.AbilityKit';
 import { MenstrualDay, normalizeDays } from '../domain/MenstrualData';
 
 const STORE_NAME: string = 'hercula-local-data';
@@ -8,11 +8,11 @@ const DAYS_KEY: string = 'menstrual-days';
 export class PreferencesStore {
   private preferencesData: preferences.Preferences | undefined;
 
-  private constructor(context: Context) {
+  private constructor() {
   }
 
-  static async open(context: Context): Promise<PreferencesStore> {
-    const store: PreferencesStore = new PreferencesStore(context);
+  static async open(context: common.UIAbilityContext): Promise<PreferencesStore> {
+    const store: PreferencesStore = new PreferencesStore();
     store.preferencesData = await preferences.getPreferences(context, { name: STORE_NAME });
     return store;
   }

@@ -1,4 +1,4 @@
-import { Context } from '@kit.AbilityKit';
+import { common } from '@kit.AbilityKit';
 import { PreferencesStore } from '../data/PreferencesStore';
 import {
   buildCalendarCells,
@@ -32,7 +32,7 @@ struct Index {
 
   private async loadLocalData(): Promise<void> {
     try {
-      const context: Context = getContext(this) as Context;
+      const context: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
       this.store = await PreferencesStore.open(context);
       this.markedDays = await this.store.loadDays();
     } catch (_error) {
@@ -159,8 +159,14 @@ struct Index {
                 .width(34)
                 .height(34)
                 .borderRadius(17)
+                .border({ width: this.isToday(cell.date) ? 2 : 0, color: BLUE_ACCENT })
                 .backgroundColor(this.dayColor(cell.date))
             }
+            .onClick((): void => {
+              if (this.isToday(cell.date)) {
+                this.toggleToday();
+              }
+            })
           }, (cell: CalendarCell): string => cell.key)
         }
         .columnsTemplate('1fr 1fr 1fr 1fr 1fr 1fr 1fr')
@@ -309,10 +315,11 @@ struct Index {
   }
 
   private dayColor(date: string): string {
-    if (date === todayKey() && this.hasDate(date)) {
-      return BLUE_ACCENT;
-    }
-    return this.hasDate(date) ? PERIOD_COLOR : Color.Transparent;
+    return this.hasDate(date) ? PERIOD_COLOR : 'transparent';
+  }
+
+  private isToday(date: string): boolean {
+    return date === todayKey();
   }
 
   private hasDate(date: string): boolean {
