@@ -9,22 +9,25 @@ import {
   PeriodSummary,
   predictNextPeriod
 } from '../domain/MenstrualData';
-import { formatShortDate, monthTitle, todayKey } from '../domain/DateUtils';
+import { formatShortDate, todayKey } from '../domain/DateUtils';
 
-const PINK_BACKGROUND: string = '#F7F1F2';
-const CARD_BACKGROUND: string = '#F1DDE1';
+const PINK_BACKGROUND: string = '#F8F2F3';
+const CARD_BACKGROUND: string = '#F2E0E3';
 const PERIOD_COLOR: string = '#C98291';
 const ACCENT_COLOR: string = '#A95E70';
 const BLUE_ACCENT: string = '#B8D1D5';
 const TEXT_COLOR: string = '#594B50';
+const MUTED_TEXT: string = '#8E7B82';
 
 @Entry
 @Component
 struct Index {
   @State private markedDays: Array<MenstrualDay> = [];
   @State private calendarDate: Date = new Date();
+  @State private calendarPagerIndex: number = 1;
   @State private currentPage: number = 0;
   @State private feedback: string = '';
+  @State private jumpMode: string = '';
   private store: PreferencesStore | undefined;
 
   aboutToAppear(): void {
@@ -36,36 +39,41 @@ struct Index {
       const context: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
       this.store = await PreferencesStore.open(context);
       this.markedDays = await this.store.loadDays();
+      if (!(await this.store.hasSeenWelcome())) {
+        await this.store.markWelcomeShown();
+        this.showWelcomeDialog();
+      }
     } catch (_error) {
       this.feedback = '本地记录读取失败，当前仅显示空白记录';
     }
   }
 
-  private async toggleToday(): Promise<void> {
-    const today: string = todayKey();
-    const exists: boolean = this.markedDays.some((item: MenstrualDay): boolean => item.date === today);
-    if (exists) {
-      AlertDialog.show({
-        title: '撤销今天的记录？',
-        message: '撤销后，今天不会计入经期统计。',
-        primaryButton: {
-          value: '保留',
-          action: (): void => {}
-        },
-        secondaryButton: {
-          value: '撤销',
-          action: (): void => {
-            this.markedDays = this.markedDays.filter((item: MenstrualDay): boolean => item.date !== today);
-            this.persistDays();
-          }
+  private showWelcomeDialog(): void {
+    AlertDialog.show({
+      title: '欢迎使用月迹',
+      message: '点击任意日期即可记录经期，再次点击即可取消。你也可以从历史页导入已有记录。',
+      primaryButton: {
+        value: '开始记录',
+        action: (): void => {}
+      },
+      secondaryButton: {
+        value: '导入数据',
+        action: (): void => {
+          this.importJson();
         }
-      });
-      return;
+      }
+    });
+  }
+
+  private async toggleDate(date: string): Promise<void> {
+    if (this.hasDate(date)) {
+      this.markedDays = this.markedDays.filter((item: MenstrualDay): boolean => item.date !== date);
+      this.feedback = `${formatShortDate(date)} 已取消`;
+    } else {
+      this.markedDays = this.markedDays.concat([{ date: date, source: 'manual' }]);
+      this.feedback = `${formatShortDate(date)} 已记录`;
     }
-    const newDay: MenstrualDay = { date: today, source: 'manual' };
-    this.markedDays = this.markedDays.concat([newDay]);
     await this.persistDays();
-    this.feedback = '今天已记录';
   }
 
   private async persistDays(): Promise<void> {
@@ -76,10 +84,32 @@ struct Index {
 
   private moveMonth(offset: number): void {
     this.calendarDate = new Date(this.calendarDate.getFullYear(), this.calendarDate.getMonth() + offset, 1);
+    this.jumpMode = '';
   }
 
-  private pageIndicator(): string {
-    return this.currentPage === 0 ? '向上滑动查看历史 ↓' : '向下滑动返回日历 ↑';
+  private onCalendarSwipe(index: number): void {
+    if (index === 0) {
+      this.moveMonth(-1);
+    } else if (index === 2) {
+      this.moveMonth(1);
+    }
+    this.calendarPagerIndex = 1;
+  }
+
+  private toggleJumpMode(mode: string): void {
+    this.jumpMode = this.jumpMode === mode ? '' : mode;
+  }
+
+  private selectYear(year: number): void {
+    this.calendarDate = new Date(year, this.calendarDate.getMonth(), 1);
+    this.jumpMode = '';
+    this.calendarPagerIndex = 1;
+  }
+
+  private selectMonth(month: number): void {
+    this.calendarDate = new Date(this.calendarDate.getFullYear(), month, 1);
+    this.jumpMode = '';
+    this.calendarPagerIndex = 1;
   }
 
   build() {
@@ -100,134 +130,182 @@ struct Index {
 
   @Builder
   private buildCalendarPage() {
-    Column({ space: 18 }) {
+    Column() {
       Row() {
-        Text('月迹')
-          .fontSize(30)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(TEXT_COLOR)
+        Column({ space: 2 }) {
+          Text('月迹')
+            .fontSize(30)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(TEXT_COLOR)
+          Text('hercula')
+            .fontSize(11)
+            .fontColor(ACCENT_COLOR)
+            .letterSpacing(2)
+        }
         Blank()
-        Text('hercula')
-          .fontSize(13)
+        Text(`${this.markedDays.length} 天已记录`)
+          .fontSize(12)
           .fontColor(ACCENT_COLOR)
+          .padding({ left: 12, right: 12, top: 8, bottom: 8 })
+          .borderRadius(18)
+          .backgroundColor('#F2E0E3')
       }
       .width('100%')
 
-      Column({ space: 18 }) {
-        Text('今天，记录身体，也记录时间')
-          .fontSize(18)
-          .fontColor(TEXT_COLOR)
-          .width('100%')
-
-        Row() {
-          Button('‹')
-            .fontSize(24)
-            .fontColor(ACCENT_COLOR)
-            .backgroundColor(Color.Transparent)
-            .onClick((): void => this.moveMonth(-1))
-          Blank()
-          Text(monthTitle(this.calendarDate))
-            .fontSize(18)
-            .fontWeight(FontWeight.Medium)
+      Column({ space: 12 }) {
+        Row({ space: 8 }) {
+          Button(`${this.calendarDate.getFullYear()}年`)
+            .fontSize(16)
             .fontColor(TEXT_COLOR)
+            .backgroundColor('#FFF9F9')
+            .borderRadius(18)
+            .height(38)
+            .onClick((): void => this.toggleJumpMode('year'))
+          Button(`${this.calendarDate.getMonth() + 1}月`)
+            .fontSize(16)
+            .fontColor(TEXT_COLOR)
+            .backgroundColor('#FFF9F9')
+            .borderRadius(18)
+            .height(38)
+            .onClick((): void => this.toggleJumpMode('month'))
           Blank()
-          Button('›')
-            .fontSize(24)
-            .fontColor(ACCENT_COLOR)
-            .backgroundColor(Color.Transparent)
-            .onClick((): void => this.moveMonth(1))
         }
         .width('100%')
 
-        Row() {
-          ForEach(['一', '二', '三', '四', '五', '六', '日'], (day: string) => {
-            Text(day)
-              .fontSize(13)
-              .fontColor(ACCENT_COLOR)
-              .textAlign(TextAlign.Center)
-              .layoutWeight(1)
-          })
-        }
-        .width('100%')
+        this.buildJumpPanel()
 
-        Grid() {
-          ForEach(this.calendarCells(), (cell: CalendarCell) => {
-            GridItem() {
-              Text(`${cell.day}`)
-                .fontSize(16)
-                .fontColor(cell.inCurrentMonth ? TEXT_COLOR : '#B9A9AE')
-                .textAlign(TextAlign.Center)
-                .width(34)
-                .height(34)
-                .borderRadius(17)
-                .border({ width: this.isToday(cell.date) ? 2 : 0, color: BLUE_ACCENT })
-                .backgroundColor(this.dayColor(cell.date))
-            }
-            .onClick((): void => {
-              if (this.isToday(cell.date)) {
-                this.toggleToday();
-              }
-            })
-          }, (cell: CalendarCell): string => cell.key)
+        Swiper() {
+          this.buildCalendarMonth(this.calendarDateForOffset(-1))
+          this.buildCalendarMonth(this.calendarDate)
+          this.buildCalendarMonth(this.calendarDateForOffset(1))
         }
-        .columnsTemplate('1fr 1fr 1fr 1fr 1fr 1fr 1fr')
-        .rowsGap(10)
-        .columnsGap(2)
+        .index(this.calendarPagerIndex)
+        .loop(false)
+        .height(274)
         .width('100%')
+        .onChange((index: number): void => this.onCalendarSwipe(index))
       }
-      .padding(20)
-      .borderRadius(28)
+      .padding({ left: 18, right: 18, top: 18, bottom: 16 })
+      .borderRadius(30)
       .backgroundColor(CARD_BACKGROUND)
       .width('100%')
-
-      Button(this.todayButtonLabel())
-        .fontSize(16)
-        .fontColor(Color.White)
-        .backgroundColor(ACCENT_COLOR)
-        .borderRadius(22)
-        .height(46)
-        .width('100%')
-        .onClick((): void => {
-          this.toggleToday();
-        })
+      .constraintSize({ maxWidth: 720 })
 
       if (this.feedback.length > 0) {
         Text(this.feedback)
-          .fontSize(14)
+          .fontSize(13)
           .fontColor(ACCENT_COLOR)
+          .height(20)
+      } else {
+        Blank().height(20)
       }
-
-      Text(this.pageIndicator())
-        .fontSize(13)
-        .fontColor('#8E7B82')
     }
     .padding({ left: 20, right: 20, top: 28, bottom: 20 })
-    .justifyContent(FlexAlign.Center)
+    .justifyContent(FlexAlign.Start)
+    .alignItems(HorizontalAlign.Center)
     .width('100%')
     .height('100%')
   }
 
   @Builder
+  private buildJumpPanel() {
+    if (this.jumpMode === 'year') {
+      Grid() {
+        ForEach(this.yearOptions(), (year: number) => {
+          GridItem() {
+            Button(`${year}`)
+              .fontSize(13)
+              .fontColor(year === this.calendarDate.getFullYear() ? ACCENT_COLOR : TEXT_COLOR)
+              .backgroundColor(year === this.calendarDate.getFullYear() ? '#E9C9D0' : '#FFF9F9')
+              .borderRadius(14)
+              .height(32)
+              .width('100%')
+              .onClick((): void => this.selectYear(year))
+          }
+        }, (year: number): string => `${year}`)
+      }
+      .columnsTemplate('1fr 1fr 1fr 1fr')
+      .rowsGap(6)
+      .columnsGap(6)
+      .height(114)
+      .width('100%')
+    } else if (this.jumpMode === 'month') {
+      Grid() {
+        ForEach(this.monthOptions(), (month: number) => {
+          GridItem() {
+            Button(`${month}月`)
+              .fontSize(13)
+              .fontColor(month === this.calendarDate.getMonth() + 1 ? ACCENT_COLOR : TEXT_COLOR)
+              .backgroundColor(month === this.calendarDate.getMonth() + 1 ? '#E9C9D0' : '#FFF9F9')
+              .borderRadius(14)
+              .height(32)
+              .width('100%')
+              .onClick((): void => this.selectMonth(month - 1))
+          }
+        }, (month: number): string => `${month}`)
+      }
+      .columnsTemplate('1fr 1fr 1fr 1fr')
+      .rowsGap(6)
+      .columnsGap(6)
+      .height(114)
+      .width('100%')
+    }
+  }
+
+  @Builder
+  private buildCalendarMonth(date: Date) {
+    Grid() {
+      ForEach(buildCalendarCells(date.getFullYear(), date.getMonth()), (cell: CalendarCell) => {
+        GridItem() {
+          Row() {
+            Text(`${cell.day}`)
+              .fontSize(15)
+              .fontColor(this.dayTextColor(cell))
+              .textAlign(TextAlign.Center)
+              .width(38)
+              .height(38)
+              .borderRadius(19)
+              .border({ width: this.isToday(cell.date) ? 2 : 0, color: BLUE_ACCENT })
+              .backgroundColor(this.dayColor(cell.date))
+          }
+          .justifyContent(FlexAlign.Center)
+          .width('100%')
+          .height(40)
+        }
+        .onClick((): void => {
+          this.toggleDate(cell.date);
+        })
+      }, (cell: CalendarCell): string => cell.key)
+    }
+    .columnsTemplate('1fr 1fr 1fr 1fr 1fr 1fr 1fr')
+    .rowsGap(4)
+    .columnsGap(2)
+    .width('100%')
+    .height(260)
+  }
+
+  @Builder
   private buildHistoryPage() {
-    Column({ space: 18 }) {
+    Column({ space: 16 }) {
       Text('月经历史')
-        .fontSize(26)
+        .fontSize(28)
         .fontWeight(FontWeight.Bold)
         .fontColor(TEXT_COLOR)
         .width('100%')
-      Text(`${this.currentPeriods().length} 次记录 · 无边框水平统计`)
-        .fontSize(14)
-        .fontColor('#8E7B82')
+
+      Text(`${this.currentPeriods().length} 次记录`)
+        .fontSize(13)
+        .fontColor(MUTED_TEXT)
         .width('100%')
 
       if (this.currentPeriods().length === 0) {
         Column({ space: 10 }) {
-          Text('先记录今天，月迹会慢慢形成')
+          Text('还没有历史记录')
             .fontSize(17)
             .fontColor(TEXT_COLOR)
-          Text('每条水平柱的末端会显示持续天数')
+          Text('记录几天后，这里会显示经期变化')
             .fontSize(14)
-            .fontColor('#8E7B82')
+            .fontColor(MUTED_TEXT)
         }
         .justifyContent(FlexAlign.Center)
         .height(220)
@@ -250,7 +328,7 @@ struct Index {
           .fontColor(TEXT_COLOR)
         Text('根据已记录历史估算，仅供记录参考')
           .fontSize(12)
-          .fontColor('#8E7B82')
+          .fontColor(MUTED_TEXT)
       }
       .alignItems(HorizontalAlign.Start)
       .width('100%')
@@ -258,31 +336,33 @@ struct Index {
       Row({ space: 12 }) {
         Button('导入')
           .layoutWeight(1)
-          .height(44)
+          .height(46)
           .fontColor(ACCENT_COLOR)
           .backgroundColor('#EAD1D6')
-          .borderRadius(22)
+          .borderRadius(23)
           .onClick((): void => {
             this.importJson();
           })
         Button('导出')
           .layoutWeight(1)
-          .height(44)
+          .height(46)
           .fontColor(Color.White)
           .backgroundColor(ACCENT_COLOR)
-          .borderRadius(22)
+          .borderRadius(23)
           .onClick((): void => {
             this.exportJson();
           })
       }
       .width('100%')
 
-      Text(this.feedback.length > 0 ? this.feedback : this.pageIndicator())
+      Text(this.feedback)
         .fontSize(13)
-        .fontColor('#8E7B82')
+        .fontColor(MUTED_TEXT)
+        .height(20)
     }
     .padding({ left: 20, right: 20, top: 28, bottom: 20 })
-    .justifyContent(FlexAlign.Center)
+    .justifyContent(FlexAlign.Start)
+    .alignItems(HorizontalAlign.Center)
     .width('100%')
     .height('100%')
   }
@@ -310,8 +390,18 @@ struct Index {
     .width('100%')
   }
 
-  private calendarCells(): Array<CalendarCell> {
-    return buildCalendarCells(this.calendarDate.getFullYear(), this.calendarDate.getMonth());
+  private calendarDateForOffset(offset: number): Date {
+    return new Date(this.calendarDate.getFullYear(), this.calendarDate.getMonth() + offset, 1);
+  }
+
+  private yearOptions(): Array<number> {
+    const currentYear: number = this.calendarDate.getFullYear();
+    return [currentYear - 5, currentYear - 4, currentYear - 3, currentYear - 2, currentYear - 1,
+      currentYear, currentYear + 1, currentYear + 2, currentYear + 3, currentYear + 4, currentYear + 5, currentYear + 6];
+  }
+
+  private monthOptions(): Array<number> {
+    return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
   }
 
   private currentPeriods(): Array<PeriodSummary> {
@@ -334,16 +424,22 @@ struct Index {
     return this.hasDate(date) ? PERIOD_COLOR : 'transparent';
   }
 
+  private dayTextColor(cell: CalendarCell): string {
+    if (this.hasDate(cell.date)) {
+      return '#FFFFFF';
+    }
+    if (this.isToday(cell.date)) {
+      return ACCENT_COLOR;
+    }
+    return cell.inCurrentMonth ? TEXT_COLOR : '#B9A9AE';
+  }
+
   private isToday(date: string): boolean {
     return date === todayKey();
   }
 
   private hasDate(date: string): boolean {
     return this.markedDays.some((item: MenstrualDay): boolean => item.date === date);
-  }
-
-  private todayButtonLabel(): string {
-    return this.hasDate(todayKey()) ? '今天已记录 · 再次点击撤销' : '记录今天来月经';
   }
 
   private async importJson(): Promise<void> {
