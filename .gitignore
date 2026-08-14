@@ -2,6 +2,7 @@
 .DS_Store
 .hvigor/
 .preview/
+.test/
 build/
 entry/build/
 oh_modules/

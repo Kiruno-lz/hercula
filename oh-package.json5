@@ -2,5 +2,7 @@
   "modelVersion": "5.0.2",
   "description": "月迹，离线月经周期记录应用",
   "dependencies": {},
-  "devDependencies": {}
+  "devDependencies": {
+    "@ohos/hypium": "1.0.18"
+  }
 }
