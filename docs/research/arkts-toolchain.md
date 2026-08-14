@@ -65,7 +65,7 @@ export PATH="/Applications/DevEco-Studio.app/Contents/tools/hvigor/bin:/Applicat
 1. 从官方 DevEco Studio 页面安装当前稳定版，并安装对应 HarmonyOS SDK。
 2. 创建空白 ArkTS Stage 工程，记录 IDE、SDK、Node/Java（若工程向导要求）和构建插件版本。
 3. 在预览器中确认基础页面可渲染。
-4. 在模拟器和至少一台真实设备上安装运行。
+4. 当前阶段优先在模拟器上安装运行；真机仅在模拟器无法覆盖或发布前补充。
 5. 打开编译器严格检查，修复 ArkTS 类型约束、弃用 API 和权限告警。
 6. 在工程文档中记录 API 版本和设备型号，后续所有组件调研以此为准。
 

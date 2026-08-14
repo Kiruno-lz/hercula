@@ -6,7 +6,7 @@
 
 ## 产品展示
 
-当前已完成的界面 1 设计基准是 Pura X 宽折叠展开态：自绘月历、低饱和粉色渐变、圆角年份/月按钮、日期圆形标记，以及年月浮动选择窗。
+当前已完成的界面 1 设计基准是 Pura X 宽折叠展开态：自绘月历、低饱和粉色渐变、圆角年份/月按钮、日期圆形标记，以及年月浮动选择窗。后续多设备重排优先考虑 Pura X 展开横向时的日历与历史双排展示。
 
 ![月迹界面 1 设计基准](./docs/assrt/阔折叠参考_1.png)
 
@@ -23,12 +23,12 @@
 | 首次欢迎弹窗 | 已完成 |
 | 基于下一条记录起点计算周期时长 | 已完成 |
 | 无限历史列表、按日期倒序 | 已完成 |
-| JSON v1 导入/导出 | 已完成，规格见 [JSON Schema](./docs/hercula-json-schema_SPEC.md) |
-| 文本语义导入 | 未实现 |
-| 图片 OCR 导入 | 未实现 |
-| 小艺 AI 接入 | 调研中，暂不作为应用依赖 |
-| 多设备 UI 适配 | 待推进，当前已验证 Pura X 宽折叠展开态 |
-| Index.ets 多组件拆分 | 待多设备布局方案确定后推进 |
+| JSON v1 导入/导出 | 基础实现，严格校验待补齐，规格见 [JSON Schema](./docs/json_SPEC.md) |
+| 简单文本日期导入 | 待实现：分隔符日期解析后匹配 JSON schema |
+| 图片 OCR 导入 | 搁置 |
+| 小艺 AI 接入 | 搁置，保留调研文档，不作为应用依赖 |
+| 多设备 UI 适配 | 待推进，优先完成 Pura X 展开横向双排方案 |
+| Index.ets 多组件拆分 | 待基础功能与 UI 组件稳定后，按响应式布局边界拆分 |
 | Buy Me a Coffee 卡片 | 待确定入口与收款地址 |
 
 ## 设计原则
@@ -37,7 +37,7 @@
 - 本地隐私：不声明网络权限，不接入分析、推送、云同步或远程大模型。
 - 低认知负担：日历是主界面，点击日期即可记录，再次点击立即取消。
 - 可解释统计：每个柱体都能追溯到日期记录，不把估算包装成医学结论。
-- 渐进式建设：先完成 JSON 恢复闭环，再考虑文本语义和图片 OCR。
+- 渐进式建设：先完善功能闭环和基础 UI 组件，再进行 UI 重排与多设备兼容检查；导入先实现 JSON schema 和确定性文本日期解析，暂不引入 AI/OCR。
 
 ## 技术结构
 
@@ -48,10 +48,10 @@ entry/src/main/ets/
 ├── domain/           # 日期、周期时长和预测逻辑
 ├── data/             # Preferences 与 JSON 文件传输
 ├── components/       # TODO：多设备布局确定后拆分
-└── parser/           # TODO：文本/OCR 候选解析
+└── parser/           # JSON 校验；文本/OCR 暂缓
 ```
 
-当前工程仍以 `Index.ets` 为主要页面文件；组件拆分会以多设备布局的稳定边界为前提，避免先拆出无法复用的屏幕专用组件。
+当前工程仍以 `Index.ets` 为主要页面文件。组件拆分不会等待所有设备的最终视觉稿，而是在功能和基础 UI 组件稳定后，先抽取可复用的功能组件，再由响应式页面壳决定单列或双排表现。
 
 ## 开发环境与构建
 
@@ -70,9 +70,9 @@ export PATH="/Applications/DevEco-Studio.app/Contents/tools/hvigor/bin:/Applicat
 
 ## 导入路线
 
-1. **阶段 1：JSON 导入** — 当前实现。读取 `schemaVersion: 1` 文件，完成基础版本检查、预览并合并日期；严格字段校验仍待补齐。
-2. **阶段 2：文本语义导入** — 先使用确定性日期规则解析；Natural Language Kit 是否能作为离线增强能力，需要按当前 SDK 和目标设备验证。
-3. **阶段 3：拍照/OCR 导入** — 图片先由 Core Vision Kit/OCR 转成文本，再复用阶段 2 的候选解析和确认流程。
+1. **阶段 1：JSON 导入** — 当前唯一实现和近期重点。读取 `schemaVersion: 1` 文件，完成基础版本检查、预览并合并日期；严格字段校验仍待补齐。
+2. **阶段 2：简单文本日期导入** — 待读取明确的年月日分隔符，转换为 JSON 候选并进入确认流程。
+3. **阶段 3：拍照/OCR 导入** — 搁置，不进入当前开发计划。
 
 小艺开放平台的 Agent/Skill 能力属于智能体开发与系统入口分发路线，不等同于应用内离线文本解析 API。相关结论记录在 [小艺 AI 调研](./docs/research/xiaoyi-ai-import-research.md)。
 
@@ -80,11 +80,13 @@ export PATH="/Applications/DevEco-Studio.app/Contents/tools/hvigor/bin:/Applicat
 
 从 [docs/README.md](./docs/README.md) 开始阅读：
 
-- [产品与交互设计](./docs/product-design.md)
-- [技术设计](./docs/technical-design.md)
-- [实施方案与进度](./docs/implementation-plan.md)
-- [JSON Schema 规格](./docs/hercula-json-schema_SPEC.md)
-- [UI 动效探索](./docs/ui-motion-exploration.md)
+- [产品与交互设计](./docs/research/product-design.md)
+- [技术设计](./docs/research/technical-design.md)
+- [实施方案与进度](./docs/research/implementation-plan.md)
+- [JSON Schema 规格](./docs/json_SPEC.md)
+- [UI 动效探索](./docs/research/ui-motion-exploration.md)
+- [响应式布局与组件边界探索](./docs/research/responsive-layout-and-component-boundaries.md)
+- [基础 UI 组件设计任务](./docs/research/ui-component-design-tasks.md)
 - [小艺 AI 与 OCR 调研](./docs/research/xiaoyi-ai-import-research.md)
 - [研究资料入口](./docs/research/README.md)
 

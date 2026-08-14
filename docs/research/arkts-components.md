@@ -54,10 +54,10 @@ ArkTS 标准能力足以完成 JSON 的序列化、反序列化和 schema 校验
 - 每次导入先预览，不直接覆盖。
 - 合并以日期去重，旧数据保留。
 
-当前第一版已实现 schema `1` 的 JSON 文件导入导出，导入文件限制为 JSON 且读取上限为 4 MiB；文本解析、粘贴入口和 OCR 入口保留在下一阶段，不将当前 JSON 能力描述为“任意文本导入”。数据契约见 [`hercula-json-schema_SPEC.md`](../hercula-json-schema_SPEC.md)。
+当前第一版已实现 schema `1` 的 JSON 文件导入导出，导入文件限制为 JSON 且读取上限为 4 MiB；文本解析、粘贴入口和 OCR 入口暂时搁置，不将当前 JSON 能力描述为“任意文本导入”。数据契约见 [`json_SPEC.md`](../json_SPEC.md)。
 
 ## 5. 端侧 AI 的边界
 
 需求中的“鸿蒙内置或者自带小 AI”目前不能作为工程依赖写死。Natural Language Kit 和 Core Vision Kit 是文本实体抽取、OCR 的候选原生能力；小艺开放平台主要是 Agent/Skill 开发与系统入口分发。要纳入后续版本，必须先验证：官方可分发 Kit、是否真正离线、模型和权限体积、支持设备、数据是否离开设备、断网失败行为、隐私政策要求和 AppGallery 审核要求。详见 [小艺 AI 调研](./xiaoyi-ai-import-research.md)。
 
-当前 JSON 是唯一已实现的导入方式；文本规则解析、Natural Language Kit 和 OCR 都要经过独立验证后再接入，避免把敏感日期发送到云端。
+当前 JSON 是唯一已实现且近期维护的导入方式；简单文本规则解析是下一项输入能力，必须转换为 JSON 候选并经过确认。Natural Language Kit 和 OCR 暂不接入，未来重新立项时仍须经过独立验证，避免把敏感日期发送到云端。
