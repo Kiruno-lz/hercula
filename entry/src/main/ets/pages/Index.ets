@@ -14,6 +14,10 @@ const PERIOD_COLOR: string = '#C98291';
 const ACCENT_COLOR: string = '#A95E70';
 const TEXT_COLOR: string = '#594B50';
 const MUTED_TEXT: string = '#8E7B82';
+const ACTION_MENU_OPEN_DURATION: number = 160;
+const ACTION_MENU_CLOSE_DURATION: number = 180;
+const ACTION_MENU_TEXT_DURATION: number = 160;
+const ACTION_MENU_TEXT_DELAY: number = 120;
 
 @Entry
 @Component
@@ -28,6 +32,8 @@ struct Index {
   @State private currentPage: number = 0;
   @State private feedback: string = '';
   @State private jumpMode: string = '';
+  @State private actionMenuOpen: boolean = false;
+  @State private isLoading: boolean = true;
   private store: PreferencesStore | undefined = undefined;
 
   aboutToAppear(): void {
@@ -45,6 +51,8 @@ struct Index {
       }
     } catch (_error) {
       this.feedback = '本地记录读取失败，当前仅显示空白记录';
+    } finally {
+      this.isLoading = false;
     }
   }
 
@@ -140,6 +148,10 @@ struct Index {
     this.jumpMode = this.jumpMode === mode ? '' : mode;
   }
 
+  private closeActionMenu(): void {
+    this.actionMenuOpen = false;
+  }
+
   private selectYear(year: number): void {
     this.calendarDate = new Date(year, this.calendarDate.getMonth(), 1);
     this.jumpMode = '';
@@ -153,20 +165,79 @@ struct Index {
   }
 
   build() {
-    Swiper() {
-      this.buildCalendarPage();
-      this.buildHistoryPage();
+    Stack() {
+      if (this.isLoading) {
+        this.buildLoadingPage();
+      } else {
+        Swiper() {
+          this.buildCalendarPage();
+          this.buildHistoryPage();
+        }
+        .index(this.currentPage)
+        .vertical(true)
+        .loop(false)
+        .onChange((index: number): void => {
+          this.currentPage = index;
+        })
+        .indicator(false)
+        .width('100%')
+        .height('100%')
+        .backgroundColor(PINK_BACKGROUND)
+      }
     }
-    .index(this.currentPage)
-    .vertical(true)
-    .loop(false)
-    .onChange((index: number): void => {
-      this.currentPage = index;
-    })
-    .indicator(false)
     .width('100%')
     .height('100%')
     .backgroundColor(PINK_BACKGROUND)
+  }
+
+  @Builder
+  private buildLoadingPage() {
+    Column({ space: 22 }) {
+      Blank()
+      Column({ space: 2 }) {
+        Text('月迹')
+          .fontSize(52)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(TEXT_COLOR)
+        Text('hercula')
+          .fontSize(18)
+          .fontColor(ACCENT_COLOR)
+          .letterSpacing(2)
+      }
+      .alignItems(HorizontalAlign.Center)
+
+      Row({ space: 24 }) {
+        Circle()
+          .width(18)
+          .height(18)
+          .fill('#E7C6CD')
+          .shadow({ radius: 8, color: '#6FC98291', offsetX: 0, offsetY: 2 })
+        Circle()
+          .width(18)
+          .height(18)
+          .fill(PERIOD_COLOR)
+          .shadow({ radius: 8, color: '#8FC98291', offsetX: 0, offsetY: 2 })
+        Circle()
+          .width(18)
+          .height(18)
+          .fill('#D5DEE7')
+          .shadow({ radius: 8, color: '#6F9DB3CC', offsetX: 0, offsetY: 2 })
+      }
+
+      Text('正在准备记录')
+        .fontSize(20)
+        .fontColor(ACCENT_COLOR)
+      Blank()
+    }
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+    .width('100%')
+    .height('100%')
+    .radialGradient({
+      center: ['50%', '46%'],
+      radius: '74%',
+      colors: [['#F1DDE1', 0.0], [PINK_BACKGROUND, 1.0]]
+    })
   }
 
   @Builder
@@ -437,84 +508,216 @@ struct Index {
 
   @Builder
   private buildHistoryPage() {
-    Scroll() {
-      Column({ space: 16 }) {
-        Row() {
-          Text('月经历史')
-            .fontSize(28)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(TEXT_COLOR)
-            .layoutWeight(1)
-          Button() {
-            Image($r('app.media.history_export'))
-              .width(24)
-              .height(24)
-          }
-          .backgroundColor('#FFF9F9')
-          .borderRadius(22)
-          .width(44)
-          .height(44)
-          .padding(0)
-          .onClick((): void => {
-            this.exportJson();
-          })
-        }
-        .width('100%')
-        .height(44)
-
-        Column({ space: 8 }) {
-          Text('下一次预计')
-            .fontSize(14)
-            .fontColor(ACCENT_COLOR)
-          Text(this.currentPrediction().label)
-            .fontSize(18)
-            .fontColor(TEXT_COLOR)
-        }
-        .alignItems(HorizontalAlign.Start)
-        .width('100%')
-
-        if (this.currentPeriods().length === 0) {
-          Column({ space: 10 }) {
-            Text('还没有历史记录')
-              .fontSize(17)
+    Stack({ alignContent: Alignment.BottomStart }) {
+      Scroll() {
+        Column({ space: 16 }) {
+          Row() {
+            Text('月经历史')
+              .fontSize(28)
+              .fontWeight(FontWeight.Bold)
               .fontColor(TEXT_COLOR)
-            Text('记录几天后，这里会显示经期变化')
-              .fontSize(14)
-              .fontColor(MUTED_TEXT)
-            Button('导入已有记录')
+              .layoutWeight(1)
+          }
+          .width('100%')
+          .height(44)
+
+          Column({ space: 8 }) {
+            Text('下一次预计')
               .fontSize(14)
               .fontColor(ACCENT_COLOR)
-              .backgroundColor('#EAD1D6')
-              .borderRadius(20)
-              .height(40)
-              .padding({ left: 20, right: 20 })
-              .onClick((): void => {
-                this.importJson();
-              })
+            Text(this.currentPrediction().label)
+              .fontSize(18)
+              .fontColor(TEXT_COLOR)
           }
-          .justifyContent(FlexAlign.Center)
-          .height(220)
+          .alignItems(HorizontalAlign.Start)
           .width('100%')
-        } else {
-          Column({ space: 14 }) {
-            ForEach(this.currentPeriodsDescending(), (period: PeriodSummary) => {
-              this.buildHistoryPeriodItem(period)
-            }, (period: PeriodSummary): string => period.startDate)
+
+          if (this.currentPeriods().length === 0) {
+            Column({ space: 10 }) {
+              Text('还没有历史记录')
+                .fontSize(17)
+                .fontColor(TEXT_COLOR)
+              Text('记录几天后，这里会显示经期变化')
+                .fontSize(14)
+                .fontColor(MUTED_TEXT)
+              Button('导入已有记录')
+                .fontSize(14)
+                .fontColor(ACCENT_COLOR)
+                .backgroundColor('#EAD1D6')
+                .borderRadius(20)
+                .height(40)
+                .padding({ left: 20, right: 20 })
+                .onClick((): void => {
+                  this.importJson();
+                })
+            }
+            .justifyContent(FlexAlign.Center)
+            .height(220)
+            .width('100%')
+          } else {
+            Column({ space: 14 }) {
+              ForEach(this.currentPeriodsDescending(), (period: PeriodSummary) => {
+                this.buildHistoryPeriodItem(period)
+              }, (period: PeriodSummary): string => period.startDate)
+            }
+            .width('100%')
           }
-          .width('100%')
         }
+        .padding({ left: 20, right: 20, top: 28, bottom: 20 })
+        .justifyContent(FlexAlign.Start)
+        .alignItems(HorizontalAlign.Center)
+        .width('100%')
       }
-      .padding({ left: 20, right: 20, top: 28, bottom: 20 })
-      .justifyContent(FlexAlign.Start)
-      .alignItems(HorizontalAlign.Center)
       .width('100%')
+      .height('100%')
+      .onClick((): void => {
+        if (this.actionMenuOpen) {
+          this.closeActionMenu();
+        }
+      })
+      .nestedScroll({
+        scrollForward: NestedScrollMode.SELF_FIRST,
+        scrollBackward: NestedScrollMode.SELF_FIRST
+      })
+
+      Column() {
+        Blank()
+          .layoutWeight(1)
+        Row() {
+          this.buildActionMenu()
+        }
+        .width(184)
+        .height(44)
+        .margin({ right: 20, bottom: 20 })
+      }
+      .alignItems(HorizontalAlign.End)
+      .hitTestBehavior(HitTestMode.Transparent)
+      .position({ x: 0, y: 0 })
+      .width('100%')
+      .height('100%')
+      .zIndex(5)
     }
     .width('100%')
     .height('100%')
-    .nestedScroll({
-      scrollForward: NestedScrollMode.SELF_FIRST,
-      scrollBackward: NestedScrollMode.SELF_FIRST
-    })
+  }
+
+  @Builder
+  private buildActionMenu() {
+    Stack() {
+      Stack() {
+        Button() {
+          Image($r('app.media.action_menu'))
+            .width(24)
+            .height(24)
+        }
+        .backgroundColor('transparent')
+        .borderRadius(22)
+        .width(44)
+        .height(44)
+        .padding(0)
+        .opacity(this.actionMenuOpen ? 0 : 1)
+        .translate({ x: this.actionMenuOpen ? -40 : 0 })
+        .blur(this.actionMenuOpen ? 2 : 0)
+        .enabled(!this.actionMenuOpen)
+        .onClick((): void => {
+          this.actionMenuOpen = true;
+        })
+
+        Column({ space: 0 }) {
+          Button('导入日期')
+            .fontSize(16)
+            .fontColor(TEXT_COLOR)
+            .backgroundColor('transparent')
+            .height(40)
+            .width('100%')
+            .padding(0)
+            .opacity(this.actionMenuOpen ? 1 : 0)
+            .translate({ x: this.actionMenuOpen ? 0 : 14 })
+            .blur(this.actionMenuOpen ? 0 : 2)
+            .animation({
+              duration: ACTION_MENU_TEXT_DURATION,
+              curve: Curve.EaseOut,
+              delay: this.actionMenuOpen ? ACTION_MENU_TEXT_DELAY : 0
+            })
+            .onClick((): void => {
+              this.closeActionMenu();
+              this.importJson();
+            })
+          Divider()
+            .strokeWidth(1)
+            .color('#28FFFFFF')
+            .width('100%')
+          Button('导出日期')
+            .fontSize(16)
+            .fontColor(TEXT_COLOR)
+            .backgroundColor('transparent')
+            .height(40)
+            .width('100%')
+            .padding(0)
+            .opacity(this.actionMenuOpen ? 1 : 0)
+            .translate({ x: this.actionMenuOpen ? 0 : 14 })
+            .blur(this.actionMenuOpen ? 0 : 2)
+            .animation({
+              duration: ACTION_MENU_TEXT_DURATION,
+              curve: Curve.EaseOut,
+              delay: this.actionMenuOpen ? ACTION_MENU_TEXT_DELAY : 0
+            })
+            .onClick((): void => {
+              this.closeActionMenu();
+              this.exportJson();
+            })
+          Divider()
+            .strokeWidth(1)
+            .color('#28FFFFFF')
+            .width('100%')
+          Button('关于软件')
+            .fontSize(16)
+            .fontColor(TEXT_COLOR)
+            .backgroundColor('transparent')
+            .height(40)
+            .width('100%')
+            .padding(0)
+            .opacity(this.actionMenuOpen ? 1 : 0)
+            .translate({ x: this.actionMenuOpen ? 0 : 14 })
+            .blur(this.actionMenuOpen ? 0 : 2)
+            .animation({
+              duration: ACTION_MENU_TEXT_DURATION,
+              curve: Curve.EaseOut,
+              delay: this.actionMenuOpen ? ACTION_MENU_TEXT_DELAY : 0
+            })
+            .onClick((): void => {
+              this.closeActionMenu();
+              this.feedback = '月迹 hercula · 本地隐私记录';
+            })
+        }
+        .padding({ left: 18, right: 18, top: 16, bottom: 16 })
+        .justifyContent(FlexAlign.SpaceBetween)
+        .width('100%')
+        .height('100%')
+        .opacity(this.actionMenuOpen ? 1 : 0)
+        .translate({ x: this.actionMenuOpen ? 0 : 40 })
+        .blur(this.actionMenuOpen ? 0 : 2)
+        .enabled(this.actionMenuOpen)
+      }
+      .position({ x: this.actionMenuOpen ? 0 : 140, y: this.actionMenuOpen ? -128 : 0 })
+      .width(this.actionMenuOpen ? 184 : 44)
+      .height(this.actionMenuOpen ? 172 : 44)
+      .backgroundColor('#E9FFF9FA')
+      .backgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THICK)
+      .backgroundEffect({ radius: 24, saturation: 1.06, brightness: 1.03 })
+      .border({ width: 1, color: '#B8FFFFFF' })
+      .borderRadius(this.actionMenuOpen ? 20 : 22)
+      .shadow({ radius: 24, color: '#3A9B7280', offsetX: 0, offsetY: 10 })
+      .zIndex(3)
+      .animation({
+        duration: this.actionMenuOpen
+          ? ACTION_MENU_OPEN_DURATION
+          : ACTION_MENU_CLOSE_DURATION,
+        curve: this.actionMenuOpen ? Curve.EaseOut : Curve.EaseInOut
+      })
+    }
+    .width(184)
+    .height(44)
   }
 
   @Builder
