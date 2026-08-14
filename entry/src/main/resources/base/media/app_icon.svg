@@ -1,6 +1,82 @@
 <svg width="192" height="192" viewBox="0 0 192 192" xmlns="http://www.w3.org/2000/svg">
-  <rect width="192" height="192" rx="52" fill="#F1DDE1"/>
-  <circle cx="96" cy="96" r="55" fill="#C98291" opacity="0.9"/>
-  <path d="M96 48C75 68 65 82 65 101C65 119 79 133 96 133C113 133 127 119 127 101C127 82 117 68 96 48Z" fill="#F7F1F2"/>
-  <circle cx="96" cy="101" r="12" fill="#B8D1D5"/>
+  <defs>
+    <linearGradient id="tileBase" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0" stop-color="#EECCD0"/>
+      <stop offset="0.5" stop-color="#DBA2A9"/>
+      <stop offset="1" stop-color="#CC828C"/>
+    </linearGradient>
+    <radialGradient id="tileGlow" cx="17%" cy="8%" r="64%">
+      <stop offset="0" stop-color="#FFF8F9" stop-opacity="0.5"/>
+      <stop offset="0.35" stop-color="#F9E1E4" stop-opacity="0.12"/>
+      <stop offset="0.78" stop-color="#F9E1E4" stop-opacity="0"/>
+      <stop offset="1" stop-color="#F9E1E4" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="tileShade" x1="24%" y1="3%" x2="76%" y2="100%">
+      <stop offset="0.54" stop-color="#984053" stop-opacity="0"/>
+      <stop offset="1" stop-color="#984053" stop-opacity="0.08"/>
+    </linearGradient>
+    <linearGradient id="tileRim" x1="3%" y1="2%" x2="97%" y2="98%">
+      <stop offset="0" stop-color="#FFF8F9" stop-opacity="0.82"/>
+      <stop offset="0.38" stop-color="#F7DBDE" stop-opacity="0.32"/>
+      <stop offset="0.72" stop-color="#B85A68" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#934052" stop-opacity="0.58"/>
+    </linearGradient>
+    <linearGradient id="groove" x1="22%" y1="7%" x2="78%" y2="96%">
+      <stop offset="0" stop-color="#DDA6AD"/>
+      <stop offset="0.48" stop-color="#C87883"/>
+      <stop offset="1" stop-color="#BF6772"/>
+    </linearGradient>
+    <linearGradient id="moon" x1="22%" y1="0%" x2="74%" y2="100%">
+      <stop offset="0" stop-color="#FFFDFD"/>
+      <stop offset="0.44" stop-color="#F7EAEA"/>
+      <stop offset="0.78" stop-color="#F3E5E6"/>
+      <stop offset="1" stop-color="#EEDADB"/>
+    </linearGradient>
+    <radialGradient id="moonGlow" cx="28%" cy="16%" r="88%">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.3"/>
+      <stop offset="0.35" stop-color="#FFFFFF" stop-opacity="0.05"/>
+      <stop offset="0.65" stop-color="#FFFFFF" stop-opacity="0"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="pearl" cx="28%" cy="22%" r="80%">
+      <stop offset="0" stop-color="#F7FBFC"/>
+      <stop offset="0.5" stop-color="#DFE6E9"/>
+      <stop offset="1" stop-color="#CEDDE1"/>
+    </radialGradient>
+
+    <filter id="grooveBlur" x="-12%" y="-12%" width="124%" height="124%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="1.5"/>
+    </filter>
+    <filter id="moonDepth" x="-18%" y="-15%" width="136%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3" result="blur"/>
+      <feOffset in="blur" dx="1.1" dy="4" result="offsetBlur"/>
+      <feFlood flood-color="#873E4E" flood-opacity="0.34" result="shadowColor"/>
+      <feComposite in="shadowColor" in2="offsetBlur" operator="in" result="shadow"/>
+      <feBlend in="SourceGraphic" in2="shadow" mode="normal"/>
+    </filter>
+    <filter id="pearlDepth" x="-30%" y="-30%" width="160%" height="175%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="1.6" result="blur"/>
+      <feOffset in="blur" dx="0.6" dy="2" result="offsetBlur"/>
+      <feFlood flood-color="#70404E" flood-opacity="0.35" result="shadowColor"/>
+      <feComposite in="shadowColor" in2="offsetBlur" operator="in" result="shadow"/>
+      <feBlend in="SourceGraphic" in2="shadow" mode="normal"/>
+    </filter>
+  </defs>
+
+  <rect width="192" height="192" rx="49" fill="url(#tileBase)"/>
+  <rect width="192" height="192" rx="49" fill="url(#tileGlow)"/>
+  <rect width="192" height="192" rx="49" fill="url(#tileShade)"/>
+  <rect x="0.7" y="0.7" width="190.6" height="190.6" rx="48.3" fill="none" stroke="url(#tileRim)" stroke-width="1.4"/>
+  <rect x="2.6" y="2.6" width="186.8" height="186.8" rx="46.5" fill="none" stroke="#F8DFE2" stroke-opacity="0.18" stroke-width="0.7"/>
+
+  <circle cx="96.4" cy="99" r="66.4" fill="none" stroke="#8C4050" stroke-opacity="0.3" stroke-width="7" filter="url(#grooveBlur)"/>
+  <circle cx="96.4" cy="99" r="68.6" fill="none" stroke="#F1C5CA" stroke-opacity="0.62" stroke-width="0.9"/>
+  <circle cx="96.4" cy="99" r="66.4" fill="none" stroke="url(#groove)" stroke-width="3.8"/>
+  <circle cx="96.4" cy="99" r="64.3" fill="none" stroke="#A24A57" stroke-opacity="0.4" stroke-width="0.8"/>
+
+  <path d="M113.8 35.6C73.3 21.8 31.9 57.2 32.6 96.4C31.9 127.3 59.1 156.2 90.8 156.4C103.7 156.6 119.6 152.4 127.1 141.6C97.3 141 64.7 117.6 66 85.3C66 59.8 87.6 36.9 113.8 35.6Z" fill="url(#moon)" filter="url(#moonDepth)"/>
+  <path d="M113.8 35.6C73.3 21.8 31.9 57.2 32.6 96.4C31.9 127.3 59.1 156.2 90.8 156.4C103.7 156.6 119.6 152.4 127.1 141.6C97.3 141 64.7 117.6 66 85.3C66 59.8 87.6 36.9 113.8 35.6Z" fill="url(#moonGlow)" stroke="#FFFFFF" stroke-opacity="0.42" stroke-width="0.7"/>
+
+  <circle cx="141.6" cy="51" r="8.8" fill="url(#pearl)" stroke="#F8F4F5" stroke-opacity="0.82" stroke-width="1" filter="url(#pearlDepth)"/>
+  <ellipse cx="139.1" cy="48.2" rx="2.9" ry="2.1" fill="#FFFFFF" fill-opacity="0.22"/>
 </svg>
