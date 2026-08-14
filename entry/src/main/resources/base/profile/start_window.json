@@ -1,0 +1,7 @@
+{
+  "startWindowBackgroundColor": "$color:start_window_background",
+  "startWindowBackgroundImage": "$media:start_window_idle",
+  "startWindowBackgroundImageFit": "Cover",
+  "startWindowType": "REQUIRED_SHOW",
+  "startWindowColorModeType": "FOLLOW_APPLICATION"
+}
