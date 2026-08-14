@@ -28,7 +28,7 @@ struct Index {
   @State private currentPage: number = 0;
   @State private feedback: string = '';
   @State private jumpMode: string = '';
-  private store: PreferencesStore | undefined;
+  private store: PreferencesStore | undefined = undefined;
 
   aboutToAppear(): void {
     this.loadLocalData();
@@ -66,6 +66,9 @@ struct Index {
   }
 
   private async toggleDate(date: string): Promise<void> {
+    if (this.isFutureDate(date)) {
+      return;
+    }
     if (this.hasDate(date)) {
       this.markedDays = this.markedDays.filter((item: MenstrualDay): boolean => item.date !== date);
       this.feedback = `${formatShortDate(date)} 已取消`;
@@ -172,14 +175,14 @@ struct Index {
       Row() {
         Column({ space: 2 }) {
           Text('月迹')
-            .fontSize(62)
+            .fontSize(68)
             .fontWeight(FontWeight.Bold)
             .fontColor(TEXT_COLOR)
           Text('hercula')
-            .fontSize(21)
+            .fontSize(24)
             .fontColor(ACCENT_COLOR)
             .letterSpacing(2)
-            .alignSelf(ItemAlign.Start)
+            // .alignSelf(ItemAlign.Start)
         }
         Blank()
       }
@@ -434,85 +437,84 @@ struct Index {
 
   @Builder
   private buildHistoryPage() {
-    Column({ space: 16 }) {
-      Text('月经历史')
-        .fontSize(28)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(TEXT_COLOR)
-        .width('100%')
-
-      Text(`${this.currentPeriods().length} 次记录`)
-        .fontSize(13)
-        .fontColor(MUTED_TEXT)
-        .width('100%')
-
-      if (this.currentPeriods().length === 0) {
-        Column({ space: 10 }) {
-          Text('还没有历史记录')
-            .fontSize(17)
+    Scroll() {
+      Column({ space: 16 }) {
+        Row() {
+          Text('月经历史')
+            .fontSize(28)
+            .fontWeight(FontWeight.Bold)
             .fontColor(TEXT_COLOR)
-          Text('记录几天后，这里会显示经期变化')
-            .fontSize(14)
-            .fontColor(MUTED_TEXT)
-        }
-        .justifyContent(FlexAlign.Center)
-        .height(220)
-        .width('100%')
-      } else {
-        Column({ space: 14 }) {
-          ForEach(this.currentPeriods().slice(-8), (period: PeriodSummary) => {
-            this.buildPeriodRow(period)
-          }, (period: PeriodSummary): string => period.startDate)
-        }
-        .width('100%')
-      }
-
-      Column({ space: 8 }) {
-        Text('下一次预计')
-          .fontSize(14)
-          .fontColor(ACCENT_COLOR)
-        Text(this.currentPrediction().label)
-          .fontSize(18)
-          .fontColor(TEXT_COLOR)
-        Text('根据已记录历史估算，仅供记录参考')
-          .fontSize(12)
-          .fontColor(MUTED_TEXT)
-      }
-      .alignItems(HorizontalAlign.Start)
-      .width('100%')
-
-      Row({ space: 12 }) {
-        Button('导入')
-          .layoutWeight(1)
-          .height(46)
-          .fontColor(ACCENT_COLOR)
-          .backgroundColor('#EAD1D6')
-          .borderRadius(23)
-          .onClick((): void => {
-            this.importJson();
-          })
-        Button('导出')
-          .layoutWeight(1)
-          .height(46)
-          .fontColor(Color.White)
-          .backgroundColor(ACCENT_COLOR)
-          .borderRadius(23)
+            .layoutWeight(1)
+          Button() {
+            Image($r('app.media.history_export'))
+              .width(24)
+              .height(24)
+          }
+          .backgroundColor('#FFF9F9')
+          .borderRadius(22)
+          .width(44)
+          .height(44)
+          .padding(0)
           .onClick((): void => {
             this.exportJson();
           })
-      }
-      .width('100%')
+        }
+        .width('100%')
+        .height(44)
 
-      Text(this.feedback)
-        .fontSize(13)
-        .fontColor(MUTED_TEXT)
-        .height(20)
+        Column({ space: 8 }) {
+          Text('下一次预计')
+            .fontSize(14)
+            .fontColor(ACCENT_COLOR)
+          Text(this.currentPrediction().label)
+            .fontSize(18)
+            .fontColor(TEXT_COLOR)
+        }
+        .alignItems(HorizontalAlign.Start)
+        .width('100%')
+
+        if (this.currentPeriods().length === 0) {
+          Column({ space: 10 }) {
+            Text('还没有历史记录')
+              .fontSize(17)
+              .fontColor(TEXT_COLOR)
+            Text('记录几天后，这里会显示经期变化')
+              .fontSize(14)
+              .fontColor(MUTED_TEXT)
+            Button('导入已有记录')
+              .fontSize(14)
+              .fontColor(ACCENT_COLOR)
+              .backgroundColor('#EAD1D6')
+              .borderRadius(20)
+              .height(40)
+              .padding({ left: 20, right: 20 })
+              .onClick((): void => {
+                this.importJson();
+              })
+          }
+          .justifyContent(FlexAlign.Center)
+          .height(220)
+          .width('100%')
+        } else {
+          Column({ space: 14 }) {
+            ForEach(this.currentPeriodsDescending(), (period: PeriodSummary) => {
+              this.buildHistoryPeriodItem(period)
+            }, (period: PeriodSummary): string => period.startDate)
+          }
+          .width('100%')
+        }
+      }
+      .padding({ left: 20, right: 20, top: 28, bottom: 20 })
+      .justifyContent(FlexAlign.Start)
+      .alignItems(HorizontalAlign.Center)
+      .width('100%')
     }
-    .padding({ left: 20, right: 20, top: 28, bottom: 20 })
-    .justifyContent(FlexAlign.Start)
-    .alignItems(HorizontalAlign.Center)
     .width('100%')
     .height('100%')
+    .nestedScroll({
+      scrollForward: NestedScrollMode.SELF_FIRST,
+      scrollBackward: NestedScrollMode.SELF_FIRST
+    })
   }
 
   @Builder
@@ -525,7 +527,8 @@ struct Index {
       Row({ space: 8 }) {
         Row()
           .height(18)
-          .width(`${this.periodRatio(period) * 100}%`)
+          .margin({ left: this.periodBarOffset(period) })
+          .width(`${this.periodRatio(period) * 82}%`)
           .borderRadius(9)
           .backgroundColor(period.ongoing ? ACCENT_COLOR : PERIOD_COLOR)
         Text(period.ongoing ? '进行中' : `${period.durationDays}天`)
@@ -537,6 +540,21 @@ struct Index {
       .height(24)
     }
     .width('100%')
+  }
+
+  @Builder
+  private buildHistoryPeriodItem(period: PeriodSummary) {
+    Stack() {
+      this.buildPeriodRow(period)
+      if (this.shouldShowYearDivider(period)) {
+        Text(`${this.periodYear(period)}年`)
+          .fontSize(12)
+          .fontColor('#B9A7AD')
+          .position({ x: 0, y: -14 })
+      }
+    }
+    .width('100%')
+    .height(24)
   }
 
   private calendarDateForOffset(offset: number): Date {
@@ -553,8 +571,8 @@ struct Index {
   }
 
   private monthDayCount(date: Date): number {
-    const year: number = date.getFullYear();
-    const month: number = date.getMonth();
+    const year = date.getFullYear();
+    const month = date.getMonth();
     const monthDays: Array<number> = [31, this.isLeapYear(year) ? 29 : 28, 31, 30, 31, 30,
       31, 31, 30, 31, 30, 31];
     return monthDays[month];
@@ -591,16 +609,47 @@ struct Index {
     return derivePeriods(this.markedDays, todayKey());
   }
 
+  private currentPeriodsDescending(): Array<PeriodSummary> {
+    return this.currentPeriods().slice().sort((left: PeriodSummary, right: PeriodSummary): number => {
+      if (left.startDate === right.startDate) {
+        return 0;
+      }
+      return left.startDate < right.startDate ? 1 : -1;
+    });
+  }
+
+  private periodYear(period: PeriodSummary): string {
+    return period.startDate.split('-')[0];
+  }
+
+  private shouldShowYearDivider(period: PeriodSummary): boolean {
+    const periods: Array<PeriodSummary> = this.currentPeriodsDescending();
+    for (let index: number = 1; index < periods.length; index += 1) {
+      if (periods[index].startDate === period.startDate) {
+        return this.periodYear(periods[index - 1]) !== this.periodYear(period);
+      }
+    }
+    return false;
+  }
+
+  private periodBarOffset(period: PeriodSummary): number {
+    return period.durationDays <= 2 ? 3 : 0;
+  }
+
   private currentPrediction() {
     return predictNextPeriod(this.currentPeriods());
   }
 
   private periodRatio(period: PeriodSummary): number {
+    return period.durationDays / this.periodScaleMax();
+  }
+
+  private periodScaleMax(): number {
     let maxDuration: number = 1;
     this.currentPeriods().forEach((item: PeriodSummary): void => {
       maxDuration = Math.max(maxDuration, item.durationDays);
     });
-    return Math.max(period.durationDays / maxDuration, 0.08);
+    return maxDuration;
   }
 
   private dayColor(date: string): string {
@@ -622,6 +671,10 @@ struct Index {
     return this.markedDays.some((item: MenstrualDay): boolean => item.date === date);
   }
 
+  private isFutureDate(date: string): boolean {
+    return date > todayKey();
+  }
+
   private async importJson(): Promise<void> {
     try {
       const context: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
@@ -630,14 +683,23 @@ struct Index {
         this.feedback = '未导入文件，原有记录未改变';
         return;
       }
+      const importableDays: Array<MenstrualDay> = result.days.filter((item: MenstrualDay): boolean => {
+        return !this.isFutureDate(item.date);
+      });
+      if (importableDays.length === 0) {
+        this.feedback = '导入失败：文件中没有今天或更早的经期日';
+        return;
+      }
       const existingDates: Set<string> = new Set<string>();
       this.markedDays.forEach((item: MenstrualDay): void => {
         existingDates.add(item.date);
       });
-      const newCount: number = result.days.filter((item: MenstrualDay): boolean => !existingDates.has(item.date)).length;
+      const newCount: number = importableDays.filter((item: MenstrualDay): boolean => {
+        return !existingDates.has(item.date);
+      }).length;
       AlertDialog.show({
         title: '导入预览',
-        message: `文件中有 ${result.days.length} 个有效日期，将新增 ${newCount} 个日期。`,
+        message: `文件中有 ${importableDays.length} 个有效日期，将新增 ${newCount} 个日期。`,
         primaryButton: {
           value: '取消',
           action: (): void => {}
@@ -645,7 +707,7 @@ struct Index {
         secondaryButton: {
           value: '确认导入',
           action: (): void => {
-            this.applyImportedDays(result.days);
+            this.applyImportedDays(importableDays);
           }
         }
       });
@@ -655,9 +717,12 @@ struct Index {
   }
 
   private async applyImportedDays(days: Array<MenstrualDay>): Promise<void> {
-    this.markedDays = this.markedDays.concat(days);
+    const importableDays: Array<MenstrualDay> = days.filter((item: MenstrualDay): boolean => {
+      return !this.isFutureDate(item.date);
+    });
+    this.markedDays = this.markedDays.concat(importableDays);
     await this.persistDays();
-    this.feedback = `已导入并合并 ${days.length} 个日期`;
+    this.feedback = `已导入并合并 ${importableDays.length} 个日期`;
   }
 
   private async exportJson(): Promise<void> {

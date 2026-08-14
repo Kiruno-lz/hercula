@@ -38,22 +38,22 @@ export function normalizeDays(days: Array<MenstrualDay>): Array<MenstrualDay> {
 }
 
 export function derivePeriods(days: Array<MenstrualDay>, today: string): Array<PeriodSummary> {
-  const normalized: Array<MenstrualDay> = normalizeDays(days);
+  const normalized: Array<MenstrualDay> = normalizeDays(days)
+    .filter((item: MenstrualDay): boolean => item.date <= today);
   const result: Array<PeriodSummary> = [];
-  normalized.forEach((item: MenstrualDay) => {
-    const last: PeriodSummary | undefined = result[result.length - 1];
-    if (last === undefined || dayDistance(last.endDate, item.date) !== 1) {
-      result.push({
-        startDate: item.date,
-        endDate: item.date,
-        durationDays: 1,
-        ongoing: item.date === today
-      });
-      return;
-    }
-    last.endDate = item.date;
-    last.durationDays += 1;
-    last.ongoing = item.date === today;
+  normalized.forEach((item: MenstrualDay, index: number) => {
+    const next: MenstrualDay | undefined = normalized[index + 1];
+    const ongoing: boolean = next === undefined;
+    const endDate: string = ongoing ? today : addDays(next.date, -1);
+    const durationDays: number = ongoing
+      ? dayDistance(item.date, today) + 1
+      : dayDistance(item.date, next.date);
+    result.push({
+      startDate: item.date,
+      endDate: endDate,
+      durationDays: Math.max(1, durationDays),
+      ongoing: ongoing
+    });
   });
   return result;
 }
