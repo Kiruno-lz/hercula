@@ -46,7 +46,7 @@ export PATH="/Applications/DevEco-Studio.app/Contents/tools/hvigor/bin:/Applicat
 /Applications/DevEco-Studio.app/Contents/tools/hvigor/bin/hvigorw assembleApp --no-daemon
 ```
 
-该命令已生成未签名 APP/HAP。签名、设备安装、真机文件选择器和应用重启行为仍需在 DevEco 设备环境中验证。`/Users/<user>/Library/Huawei/Sdk` 若只安装了 system-image，不能作为 `DEVECO_SDK_HOME` 使用；应使用 DevEco 自带 SDK 或在 IDE 中安装完整 API SDK。
+该命令已生成未签名 APP/HAP。当前已在 DevEco Pura X 宽折叠模拟器完成安装、启动和界面检查；签名、真机文件选择器和应用重启行为仍需验证。`/Users/<user>/Library/Huawei/Sdk` 若只安装了 system-image，不能作为 `DEVECO_SDK_HOME` 使用；应使用 DevEco 自带 SDK 或在 IDE 中安装完整 API SDK。
 
 ## 3. 工程选择
 
