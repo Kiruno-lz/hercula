@@ -2,8 +2,6 @@ import { common } from '@kit.AbilityKit';
 import { PreferencesStore } from '../data/PreferencesStore';
 import { JsonImportResult, JsonTransfer } from '../data/JsonTransfer';
 import {
-  buildCalendarCells,
-  CalendarCell,
   derivePeriods,
   MenstrualDay,
   PeriodSummary,
@@ -12,10 +10,8 @@ import {
 import { formatShortDate, todayKey } from '../domain/DateUtils';
 
 const PINK_BACKGROUND: string = '#F8F2F3';
-const CARD_BACKGROUND: string = '#F2E0E3';
 const PERIOD_COLOR: string = '#C98291';
 const ACCENT_COLOR: string = '#A95E70';
-const BLUE_ACCENT: string = '#B8D1D5';
 const TEXT_COLOR: string = '#594B50';
 const MUTED_TEXT: string = '#8E7B82';
 
@@ -24,7 +20,11 @@ const MUTED_TEXT: string = '#8E7B82';
 struct Index {
   @State private markedDays: Array<MenstrualDay> = [];
   @State private calendarDate: Date = new Date();
-  @State private calendarPagerIndex: number = 1;
+  @State private calendarRenderVersion: number = 0;
+  @State private calendarDragOffset: number = 0;
+  @State private calendarViewportWidth: number = 400;
+  @State private calendarAnimationDuration: number = 0;
+  @State private calendarSwipeSettling: boolean = false;
   @State private currentPage: number = 0;
   @State private feedback: string = '';
   @State private jumpMode: string = '';
@@ -85,15 +85,52 @@ struct Index {
   private moveMonth(offset: number): void {
     this.calendarDate = new Date(this.calendarDate.getFullYear(), this.calendarDate.getMonth() + offset, 1);
     this.jumpMode = '';
+    this.calendarRenderVersion += 1;
   }
 
-  private onCalendarSwipe(index: number): void {
-    if (index === 0) {
-      this.moveMonth(-1);
-    } else if (index === 2) {
-      this.moveMonth(1);
+  private onCalendarPanUpdate(event: GestureEvent): void {
+    if (this.calendarSwipeSettling) {
+      return;
     }
-    this.calendarPagerIndex = 1;
+    this.calendarAnimationDuration = 0;
+    this.calendarDragOffset = Math.max(-this.calendarViewportWidth,
+      Math.min(this.calendarViewportWidth, event.offsetX));
+  }
+
+  private onCalendarPanEnd(event: GestureEvent): void {
+    if (this.calendarSwipeSettling) {
+      return;
+    }
+    const threshold: number = Math.max(40, this.calendarViewportWidth * 0.2);
+    if (event.offsetX < -threshold) {
+      this.settleCalendarSwipe(1);
+    } else if (event.offsetX > threshold) {
+      this.settleCalendarSwipe(-1);
+    } else {
+      this.animateCalendarBack();
+    }
+  }
+
+  private settleCalendarSwipe(offset: number): void {
+    this.calendarSwipeSettling = true;
+    this.calendarAnimationDuration = 180;
+    this.calendarDragOffset = offset > 0 ? -this.calendarViewportWidth : this.calendarViewportWidth;
+    setTimeout((): void => {
+      this.calendarAnimationDuration = 0;
+      this.moveMonth(offset);
+      this.calendarDragOffset = 0;
+      this.calendarSwipeSettling = false;
+    }, 190);
+  }
+
+  private animateCalendarBack(): void {
+    this.calendarSwipeSettling = true;
+    this.calendarAnimationDuration = 160;
+    this.calendarDragOffset = 0;
+    setTimeout((): void => {
+      this.calendarAnimationDuration = 0;
+      this.calendarSwipeSettling = false;
+    }, 170);
   }
 
   private toggleJumpMode(mode: string): void {
@@ -103,13 +140,13 @@ struct Index {
   private selectYear(year: number): void {
     this.calendarDate = new Date(year, this.calendarDate.getMonth(), 1);
     this.jumpMode = '';
-    this.calendarPagerIndex = 1;
+    this.calendarRenderVersion += 1;
   }
 
   private selectMonth(month: number): void {
     this.calendarDate = new Date(this.calendarDate.getFullYear(), month, 1);
     this.jumpMode = '';
-    this.calendarPagerIndex = 1;
+    this.calendarRenderVersion += 1;
   }
 
   build() {
@@ -123,6 +160,7 @@ struct Index {
     .onChange((index: number): void => {
       this.currentPage = index;
     })
+    .indicator(false)
     .width('100%')
     .height('100%')
     .backgroundColor(PINK_BACKGROUND)
@@ -134,25 +172,20 @@ struct Index {
       Row() {
         Column({ space: 2 }) {
           Text('月迹')
-            .fontSize(30)
+            .fontSize(62)
             .fontWeight(FontWeight.Bold)
             .fontColor(TEXT_COLOR)
           Text('hercula')
-            .fontSize(11)
+            .fontSize(21)
             .fontColor(ACCENT_COLOR)
             .letterSpacing(2)
+            .alignSelf(ItemAlign.Start)
         }
         Blank()
-        Text(`${this.markedDays.length} 天已记录`)
-          .fontSize(12)
-          .fontColor(ACCENT_COLOR)
-          .padding({ left: 12, right: 12, top: 8, bottom: 8 })
-          .borderRadius(18)
-          .backgroundColor('#F2E0E3')
       }
       .width('100%')
 
-      Column({ space: 12 }) {
+      Column({ space: 6 }) {
         Row({ space: 8 }) {
           Button(`${this.calendarDate.getFullYear()}年`)
             .fontSize(16)
@@ -160,6 +193,8 @@ struct Index {
             .backgroundColor('#FFF9F9')
             .borderRadius(18)
             .height(38)
+            .width(74)
+            .padding(0)
             .onClick((): void => this.toggleJumpMode('year'))
           Button(`${this.calendarDate.getMonth() + 1}月`)
             .fontSize(16)
@@ -167,44 +202,52 @@ struct Index {
             .backgroundColor('#FFF9F9')
             .borderRadius(18)
             .height(38)
+            .width(52)
+            .padding(0)
             .onClick((): void => this.toggleJumpMode('month'))
           Blank()
         }
         .width('100%')
 
-        this.buildJumpPanel()
+        Stack() {
+          this.buildCalendarCarousel()
 
-        Swiper() {
-          this.buildCalendarMonth(this.calendarDateForOffset(-1))
-          this.buildCalendarMonth(this.calendarDate)
-          this.buildCalendarMonth(this.calendarDateForOffset(1))
+          if (this.jumpMode !== '') {
+            Stack() {
+              this.buildJumpPanel()
+            }
+            .position({ x: 0, y: 0 })
+            .zIndex(2)
+            .width('100%')
+            .height(183)
+            .backgroundColor('#E8FFF9FA')
+            .backgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THICK)
+            .backgroundEffect({ radius: 28, saturation: 1.06, brightness: 1.04 })
+            .border({ width: 1, color: '#A8FFFFFF' })
+            .borderRadius(20)
+            .shadow({ radius: 20, color: '#2F9F6270', offsetX: 0, offsetY: 8 })
+            .transition(TransitionEffect.OPACITY
+              .combine(TransitionEffect.translate({ y: -18 }))
+              .animation({ duration: 240, curve: Curve.EaseOut }))
+          }
         }
-        .index(this.calendarPagerIndex)
-        .loop(false)
-        .height(274)
+        .height(360)
         .width('100%')
-        .onChange((index: number): void => this.onCalendarSwipe(index))
       }
-      .padding({ left: 18, right: 18, top: 18, bottom: 16 })
-      .borderRadius(30)
-      .backgroundColor(CARD_BACKGROUND)
+      .padding({ left: 0, right: 0, top: 18, bottom: 0 })
       .width('100%')
       .constraintSize({ maxWidth: 720 })
-
-      if (this.feedback.length > 0) {
-        Text(this.feedback)
-          .fontSize(13)
-          .fontColor(ACCENT_COLOR)
-          .height(20)
-      } else {
-        Blank().height(20)
-      }
     }
-    .padding({ left: 20, right: 20, top: 28, bottom: 20 })
+    .padding({ left: 20, right: 20, top: 120, bottom: 20 })
     .justifyContent(FlexAlign.Start)
     .alignItems(HorizontalAlign.Center)
     .width('100%')
     .height('100%')
+    .radialGradient({
+      center: ['50%', '36%'],
+      radius: '68%',
+      colors: [['#F1DDE1', 0.0], [PINK_BACKGROUND, 1.0]]
+    })
   }
 
   @Builder
@@ -213,75 +256,180 @@ struct Index {
       Grid() {
         ForEach(this.yearOptions(), (year: number) => {
           GridItem() {
-            Button(`${year}`)
-              .fontSize(13)
-              .fontColor(year === this.calendarDate.getFullYear() ? ACCENT_COLOR : TEXT_COLOR)
-              .backgroundColor(year === this.calendarDate.getFullYear() ? '#E9C9D0' : '#FFF9F9')
-              .borderRadius(14)
-              .height(32)
-              .width('100%')
-              .onClick((): void => this.selectYear(year))
+            Row() {
+              Button(`${year}`)
+                .fontSize(13)
+                .fontColor(year === this.calendarDate.getFullYear() ? ACCENT_COLOR : TEXT_COLOR)
+                .backgroundColor(year === this.calendarDate.getFullYear() ? '#E9C9D0' : '#FFF9F9')
+                .borderRadius(14)
+                .height(28)
+                .width('60%')
+                .padding(0)
+                .onClick((): void => this.selectYear(year))
+            }
+            .justifyContent(FlexAlign.Center)
+            .width('100%')
+            .height('100%')
           }
         }, (year: number): string => `${year}`)
       }
       .columnsTemplate('1fr 1fr 1fr 1fr')
-      .rowsGap(6)
-      .columnsGap(6)
-      .height(114)
+      .rowsTemplate('1fr 1fr 1fr')
+      .rowsGap(8)
+      .columnsGap(4)
+      .padding({ left: 18, right: 18, top: 10, bottom: 10 })
+      .height(183)
       .width('100%')
     } else if (this.jumpMode === 'month') {
       Grid() {
         ForEach(this.monthOptions(), (month: number) => {
           GridItem() {
-            Button(`${month}月`)
-              .fontSize(13)
-              .fontColor(month === this.calendarDate.getMonth() + 1 ? ACCENT_COLOR : TEXT_COLOR)
-              .backgroundColor(month === this.calendarDate.getMonth() + 1 ? '#E9C9D0' : '#FFF9F9')
-              .borderRadius(14)
-              .height(32)
-              .width('100%')
-              .onClick((): void => this.selectMonth(month - 1))
+            Row() {
+              Button(`${month}月`)
+                .fontSize(13)
+                .fontColor(month === this.calendarDate.getMonth() + 1 ? ACCENT_COLOR : TEXT_COLOR)
+                .backgroundColor(month === this.calendarDate.getMonth() + 1 ? '#E9C9D0' : '#FFF9F9')
+                .borderRadius(14)
+                .height(26)
+                .width('60%')
+                .padding(0)
+                .onClick((): void => this.selectMonth(month - 1))
+            }
+            .justifyContent(FlexAlign.Center)
+            .width('100%')
+            .height('100%')
           }
         }, (month: number): string => `${month}`)
       }
       .columnsTemplate('1fr 1fr 1fr 1fr')
-      .rowsGap(6)
-      .columnsGap(6)
-      .height(114)
+      .rowsTemplate('1fr 1fr 1fr')
+      .rowsGap(8)
+      .columnsGap(4)
+      .padding({ left: 18, right: 18, top: 10, bottom: 10 })
+      .height(183)
       .width('100%')
     }
   }
 
   @Builder
-  private buildCalendarMonth(date: Date) {
+  private buildCalendarCarousel() {
+    Stack() {
+      if (this.calendarRenderVersion % 2 === 0) {
+        this.buildCalendarTrackA()
+      } else {
+        this.buildCalendarTrackB()
+      }
+    }
+    .clip(true)
+    .width('100%')
+    .height(360)
+    .onAreaChange((_oldValue: Area, newValue: Area): void => {
+      this.calendarViewportWidth = newValue.width as number;
+    })
+    .gesture(
+      PanGesture({ direction: PanDirection.Horizontal })
+        .onActionUpdate((event: GestureEvent): void => this.onCalendarPanUpdate(event))
+        .onActionEnd((event: GestureEvent): void => this.onCalendarPanEnd(event))
+    )
+  }
+
+  @Builder
+  private buildCalendarTrackA() {
+    Stack() {
+      this.buildCalendarMonthCardA(-1)
+      this.buildCalendarMonthCardA(0)
+      this.buildCalendarMonthCardA(1)
+    }
+    .width('100%')
+    .height(360)
+  }
+
+  @Builder
+  private buildCalendarTrackB() {
+    Stack() {
+      this.buildCalendarMonthCardB(-1)
+      this.buildCalendarMonthCardB(0)
+      this.buildCalendarMonthCardB(1)
+    }
+    .width('100%')
+    .height(360)
+  }
+
+  @Builder
+  private buildCalendarMonthCardA(offset: number) {
+    Column() {
+      this.buildCalendarMonthA(offset)
+    }
+    .width('100%')
+    .height(360)
+    .margin({ top: 22 })
+    .translate({ x: offset * this.calendarViewportWidth + this.calendarDragOffset })
+    .animation({ duration: this.calendarAnimationDuration, curve: Curve.EaseOut })
+  }
+
+  @Builder
+  private buildCalendarMonthCardB(offset: number) {
+    Column() {
+      this.buildCalendarMonthB(offset)
+    }
+    .width('100%')
+    .height(360)
+    .margin({ top: 22 })
+    .translate({ x: offset * this.calendarViewportWidth + this.calendarDragOffset })
+    .animation({ duration: this.calendarAnimationDuration, curve: Curve.EaseOut })
+  }
+
+  @Builder
+  private buildCalendarMonthA(offset: number) {
     Grid() {
-      ForEach(buildCalendarCells(date.getFullYear(), date.getMonth()), (cell: CalendarCell) => {
-        GridItem() {
-          Row() {
-            Text(`${cell.day}`)
-              .fontSize(15)
-              .fontColor(this.dayTextColor(cell))
-              .textAlign(TextAlign.Center)
-              .width(38)
-              .height(38)
-              .borderRadius(19)
-              .border({ width: this.isToday(cell.date) ? 2 : 0, color: BLUE_ACCENT })
-              .backgroundColor(this.dayColor(cell.date))
-          }
-          .justifyContent(FlexAlign.Center)
-          .width('100%')
-          .height(40)
-        }
-        .onClick((): void => {
-          this.toggleDate(cell.date);
-        })
-      }, (cell: CalendarCell): string => cell.key)
+      ForEach(this.calendarDayNumbersForOffset(offset), (day: number) => {
+        this.buildCalendarDay(offset, day)
+      }, (day: number): string => this.calendarDayKey(offset, day))
     }
     .columnsTemplate('1fr 1fr 1fr 1fr 1fr 1fr 1fr')
-    .rowsGap(4)
+    .rowsGap(15)
     .columnsGap(2)
     .width('100%')
-    .height(260)
+    .height(360)
+    .id(`calendar-grid-a-${this.calendarRenderVersion}-${offset}`)
+  }
+
+  @Builder
+  private buildCalendarMonthB(offset: number) {
+    Grid() {
+      ForEach(this.calendarDayNumbersForOffset(offset), (day: number) => {
+        this.buildCalendarDay(offset, day)
+      }, (day: number): string => this.calendarDayKey(offset, day))
+    }
+    .columnsTemplate('1fr 1fr 1fr 1fr 1fr 1fr 1fr')
+    .rowsGap(15)
+    .columnsGap(2)
+    .width('100%')
+    .height(360)
+    .id(`calendar-grid-b-${this.calendarRenderVersion}-${offset}`)
+  }
+
+  @Builder
+  private buildCalendarDay(offset: number, day: number) {
+    GridItem() {
+      Row() {
+        Text(`${day}`)
+          .fontSize(15)
+          .fontColor(this.dayTextColor(this.calendarDayKey(offset, day)))
+          .textAlign(TextAlign.Center)
+          .width(38)
+          .height(38)
+          .borderRadius(19)
+          .backgroundColor(this.dayColor(this.calendarDayKey(offset, day)))
+      }
+      .justifyContent(FlexAlign.Center)
+      .width('100%')
+      .height(40)
+    }
+    .visibility(this.isCalendarDayVisible(offset, day) ? Visibility.Visible : Visibility.Hidden)
+    .onClick((): void => {
+      this.toggleDate(this.calendarDayKey(offset, day));
+    })
   }
 
   @Builder
@@ -386,12 +534,43 @@ struct Index {
           .maxLines(1)
       }
       .layoutWeight(1)
+      .height(24)
     }
     .width('100%')
   }
 
   private calendarDateForOffset(offset: number): Date {
     return new Date(this.calendarDate.getFullYear(), this.calendarDate.getMonth() + offset, 1);
+  }
+
+  private calendarDayNumbersForOffset(offset: number): Array<number> {
+    const days: Array<number> = [];
+    const count: number = this.monthDayCount(this.calendarDateForOffset(offset));
+    for (let day: number = 1; day <= count; day += 1) {
+      days.push(day);
+    }
+    return days;
+  }
+
+  private monthDayCount(date: Date): number {
+    const year: number = date.getFullYear();
+    const month: number = date.getMonth();
+    const monthDays: Array<number> = [31, this.isLeapYear(year) ? 29 : 28, 31, 30, 31, 30,
+      31, 31, 30, 31, 30, 31];
+    return monthDays[month];
+  }
+
+  private calendarDateKey(date: Date, day: number): string {
+    const month: number = date.getMonth() + 1;
+    return `${date.getFullYear()}-${month < 10 ? '0' : ''}${month}-${day < 10 ? '0' : ''}${day}`;
+  }
+
+  private calendarDayKey(offset: number, day: number): string {
+    return this.calendarDateKey(this.calendarDateForOffset(offset), day);
+  }
+
+  private isCalendarDayVisible(offset: number, day: number): boolean {
+    return day <= this.monthDayCount(this.calendarDateForOffset(offset));
   }
 
   private yearOptions(): Array<number> {
@@ -402,6 +581,10 @@ struct Index {
 
   private monthOptions(): Array<number> {
     return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+  }
+
+  private isLeapYear(year: number): boolean {
+    return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
   }
 
   private currentPeriods(): Array<PeriodSummary> {
@@ -424,14 +607,11 @@ struct Index {
     return this.hasDate(date) ? PERIOD_COLOR : 'transparent';
   }
 
-  private dayTextColor(cell: CalendarCell): string {
-    if (this.hasDate(cell.date)) {
+  private dayTextColor(date: string): string {
+    if (this.hasDate(date)) {
       return '#FFFFFF';
     }
-    if (this.isToday(cell.date)) {
-      return ACCENT_COLOR;
-    }
-    return cell.inCurrentMonth ? TEXT_COLOR : '#B9A9AE';
+    return TEXT_COLOR;
   }
 
   private isToday(date: string): boolean {
