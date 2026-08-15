@@ -15,6 +15,8 @@ const MUTED_TEXT: string = '#8E7B82';
 @Component
 export struct HistoryComponent {
   @Prop markedDays: Array<MenstrualDay> = [];
+  @Prop embeddedInScroll: boolean = false;
+  @Prop showActionMenu: boolean = true;
   onImport: () => void = (): void => {};
   onExport: () => void = (): void => {};
   onAbout: () => void = (): void => {};
@@ -23,104 +25,115 @@ export struct HistoryComponent {
 
   build() {
     Stack({ alignContent: Alignment.BottomStart }) {
-      Scroll() {
-        Column({ space: 16 }) {
-          Row() {
-            Text('月经历史')
-              .fontSize(28)
-              .fontWeight(FontWeight.Bold)
-              .fontColor(TEXT_COLOR)
-              .layoutWeight(1)
-          }
-          .width('100%')
-          .height(44)
-
-          Column({ space: 8 }) {
-            Text('下一次预计')
-              .fontSize(14)
-              .fontColor(ACCENT_COLOR)
-            Text(this.currentPrediction().label)
-              .fontSize(18)
-              .fontColor(TEXT_COLOR)
-          }
-          .alignItems(HorizontalAlign.Start)
-          .width('100%')
-
-          if (this.currentPeriods().length === 0) {
-            Column({ space: 10 }) {
-              Text('还没有历史记录')
-                .fontSize(17)
-                .fontColor(TEXT_COLOR)
-              Text('记录几天后，这里会显示经期变化')
-                .fontSize(14)
-                .fontColor(MUTED_TEXT)
-              Button('导入已有记录')
-                .fontSize(14)
-                .fontColor(ACCENT_COLOR)
-                .backgroundColor('#EAD1D6')
-                .borderRadius(20)
-                .height(40)
-                .padding({ left: 20, right: 20 })
-                .onClick((): void => {
-                  this.onImport();
-                })
-            }
-            .justifyContent(FlexAlign.Center)
-            .height(220)
-            .width('100%')
-          } else {
-            Column({ space: 14 }) {
-              ForEach(this.currentPeriodsDescending(), (period: PeriodSummary) => {
-                this.buildHistoryPeriodItem(period)
-              }, (period: PeriodSummary): string => period.startDate)
-            }
-            .width('100%')
-          }
+      if (this.embeddedInScroll) {
+        this.buildHistoryContent()
+      } else {
+        Scroll() {
+          this.buildHistoryContent()
         }
-        .padding({ left: 20, right: 20, top: '2.12%', bottom: '1.52%' })
-        .justifyContent(FlexAlign.Start)
-        .alignItems(HorizontalAlign.Center)
         .width('100%')
+        .height('100%')
+        .onClick((): void => {
+          if (this.actionMenuOpen) {
+            this.actionMenuOpen = false;
+          }
+        })
+        .nestedScroll({
+          scrollForward: NestedScrollMode.SELF_FIRST,
+          scrollBackward: NestedScrollMode.SELF_FIRST
+        })
       }
-      .width('100%')
-      .height('100%')
-      .onClick((): void => {
-        if (this.actionMenuOpen) {
-          this.actionMenuOpen = false;
-        }
-      })
-      .nestedScroll({
-        scrollForward: NestedScrollMode.SELF_FIRST,
-        scrollBackward: NestedScrollMode.SELF_FIRST
-      })
 
-      Column() {
-        Blank()
-          .layoutWeight(1)
-        Row() {
-          ActionMenuComponent({
-            actionMenuOpen: this.actionMenuOpen,
-            onOpenChange: (open: boolean): void => {
-              this.actionMenuOpen = open;
-            },
-            onImport: (): void => this.onImport(),
-            onExport: (): void => this.onExport(),
-            onAbout: (): void => this.onAbout()
-          })
+      if (this.showActionMenu) {
+        Column() {
+          Blank()
+            .layoutWeight(1)
+          Row() {
+            ActionMenuComponent({
+              actionMenuOpen: this.actionMenuOpen,
+              onOpenChange: (open: boolean): void => {
+                this.actionMenuOpen = open;
+              },
+              onImport: (): void => this.onImport(),
+              onExport: (): void => this.onExport(),
+              onAbout: (): void => this.onAbout()
+            })
+          }
+          .width(184)
+          .height(44)
+          .margin({ right: '1.52%', bottom: '1.52%' })
         }
-        .width(184)
-        .height(44)
-        .margin({ right: '1.52%', bottom: '1.52%' })
+        .alignItems(HorizontalAlign.End)
+        .hitTestBehavior(HitTestMode.Transparent)
+        .position({ x: 0, y: 0 })
+        .width('100%')
+        .height('100%')
+        .zIndex(5)
       }
-      .alignItems(HorizontalAlign.End)
-      .hitTestBehavior(HitTestMode.Transparent)
-      .position({ x: 0, y: 0 })
-      .width('100%')
-      .height('100%')
-      .zIndex(5)
     }
     .width('100%')
-    .height('100%')
+    .height(this.embeddedInScroll ? 'auto' : '100%')
+  }
+
+  @Builder
+  private buildHistoryContent() {
+    Column({ space: 16 }) {
+      Row() {
+        Text('月经历史')
+          .fontSize(28)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(TEXT_COLOR)
+          .layoutWeight(1)
+      }
+      .width('100%')
+      .height(44)
+
+      Column({ space: 8 }) {
+        Text('下一次预计')
+          .fontSize(14)
+          .fontColor(ACCENT_COLOR)
+        Text(this.currentPrediction().label)
+          .fontSize(18)
+          .fontColor(TEXT_COLOR)
+      }
+      .alignItems(HorizontalAlign.Start)
+      .width('100%')
+
+      if (this.currentPeriods().length === 0) {
+        Column({ space: 10 }) {
+          Text('还没有历史记录')
+            .fontSize(17)
+            .fontColor(TEXT_COLOR)
+          Text('记录几天后，这里会显示经期变化')
+            .fontSize(14)
+            .fontColor(MUTED_TEXT)
+          Button('导入已有记录')
+            .fontSize(14)
+            .fontColor(ACCENT_COLOR)
+            .backgroundColor('#EAD1D6')
+            .borderRadius(20)
+            .height(40)
+            .padding({ left: 20, right: 20 })
+            .onClick((): void => {
+              this.onImport();
+            })
+        }
+        .justifyContent(FlexAlign.Center)
+        .height(220)
+        .width('100%')
+      } else {
+        Column({ space: 14 }) {
+          ForEach(this.currentPeriodsDescending(), (period: PeriodSummary) => {
+            this.buildHistoryPeriodItem(period)
+          }, (period: PeriodSummary): string => period.startDate)
+        }
+        .width('100%')
+      }
+    }
+    .padding({ left: 20, right: 20, top: '2.12%', bottom: '1.52%' })
+    .justifyContent(FlexAlign.Start)
+    .alignItems(HorizontalAlign.Center)
+    .width('100%')
   }
 
   @Builder

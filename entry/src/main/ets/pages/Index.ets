@@ -1,10 +1,12 @@
 import { common } from '@kit.AbilityKit';
+import { window } from '@kit.ArkUI';
 import { PreferencesStore } from '../data/PreferencesStore';
 import { JsonDateCandidateResult, JsonTransfer } from '../data/JsonTransfer';
 import { MenstrualDay } from '../domain/MenstrualData';
 import { formatShortDate, todayKey } from '../domain/DateUtils';
 import { parseTextDates, TextDateParseResult } from '../domain/TextDateParser';
 import { ImportValidationResult, validateImportDates } from '../domain/ImportValidator';
+import { classifyLayoutMode } from '../domain/ResponsiveLayout';
 import { ResponsivePageShell } from '../components/ResponsivePageShell';
 import { WelcomeComponent } from '../components/WelcomeComponent';
 import { LoadingComponent } from '../components/LoadingComponent';
@@ -14,8 +16,10 @@ import { ImportConfirmationComponent } from '../components/ImportConfirmationCom
 
 const PINK_BACKGROUND: string = '#F8F2F3';
 const GITHUB_REPOSITORY_URL: string = 'https://github.com/Kiruno-lz/hercula';
+const SHOW_LAYOUT_MODE_DEBUG: boolean = false;
 
 @Entry
+@Preview
 @Component
 struct Index {
   @State private markedDays: Array<MenstrualDay> = [];
@@ -36,15 +40,91 @@ struct Index {
     invalidTokens: []
   };
   @State private isLoading: boolean = true;
+  @State private windowWidth: number = 1320;
+  @State private windowHeight: number = 2120;
   private store: PreferencesStore | undefined = undefined;
+  private appWindow: window.Window | undefined = undefined;
+  private appliedOrientation: window.Orientation | undefined = undefined;
+  private readonly onWindowSizeChange: (size: window.Size) => void =
+    (size: window.Size): void => {
+      this.updateWindowSize(size.width, size.height);
+    };
+  private readonly onWindowRectChange: (options: window.RectChangeOptions) => void =
+    (options: window.RectChangeOptions): void => {
+      this.updateWindowSize(options.rect.width, options.rect.height);
+    };
 
   aboutToAppear(): void {
     this.loadLocalData();
   }
 
+  onPageShow(): void {
+    this.refreshWindowMetrics();
+  }
+
+  onPageHide(): void {
+    if (this.appWindow !== undefined) {
+      this.detachWindowListeners(this.appWindow);
+      this.appWindow = undefined;
+      this.appliedOrientation = undefined;
+    }
+  }
+
+  private async refreshWindowMetrics(): Promise<void> {
+    try {
+      const context: common.UIAbilityContext | undefined = this.getAbilityContext();
+      if (context === undefined) {
+        return;
+      }
+      const currentWindow: window.Window = await window.getLastWindow(context);
+      if (this.appWindow !== currentWindow) {
+        if (this.appWindow !== undefined) {
+          this.detachWindowListeners(this.appWindow);
+        }
+        this.appWindow = currentWindow;
+        this.appWindow.on('windowSizeChange', this.onWindowSizeChange);
+        this.appWindow.on('windowRectChange', this.onWindowRectChange);
+      }
+      const rect: window.Rect = currentWindow.getWindowProperties().windowRect;
+      this.updateWindowSize(rect.width, rect.height);
+    } catch (_error) {
+      // Previewer may not provide a real application window; keep preview defaults.
+    }
+  }
+
+  private updateWindowSize(width: number, height: number): void {
+    if (width > 0 && height > 0
+      && (width !== this.windowWidth || height !== this.windowHeight)) {
+      this.windowWidth = width;
+      this.windowHeight = height;
+      this.applyOrientationPolicy(width, height);
+    }
+  }
+
+  private async applyOrientationPolicy(width: number, height: number): Promise<void> {
+    if (this.appWindow === undefined) {
+      return;
+    }
+    const targetOrientation: window.Orientation = classifyLayoutMode(width, height) === 'scroll'
+      ? window.Orientation.PORTRAIT
+      : window.Orientation.AUTO_ROTATION;
+    if (this.appliedOrientation === targetOrientation) {
+      return;
+    }
+    try {
+      await this.appWindow.setPreferredOrientation(targetOrientation);
+      this.appliedOrientation = targetOrientation;
+    } catch (_error) {
+      // Keep the last valid orientation policy when the current window rejects a change.
+    }
+  }
+
   private async loadLocalData(): Promise<void> {
     try {
-      const context: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+      const context: common.UIAbilityContext | undefined = this.getAbilityContext();
+      if (context === undefined) {
+        return;
+      }
       this.store = await PreferencesStore.open(context);
       this.markedDays = await this.store.loadDays();
       if (!(await this.store.hasSeenWelcome())) {
@@ -102,7 +182,11 @@ struct Index {
 
   private async loadJsonIntoTextImport(): Promise<void> {
     try {
-      const context: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+      const context: common.UIAbilityContext | undefined = this.getAbilityContext();
+      if (context === undefined) {
+        this.textImportNotice = '无法打开文件选择器，请稍后重试';
+        return;
+      }
       const result: JsonDateCandidateResult | undefined = await JsonTransfer.selectDateCandidates(context);
       if (result === undefined) {
         this.textImportNotice = '未选择文件，当前输入内容未改变';
@@ -180,6 +264,9 @@ struct Index {
       } else {
         ResponsivePageShell({
           markedDays: this.markedDays,
+          viewportWidth: this.windowWidth,
+          viewportHeight: this.windowHeight,
+          showLayoutModeDebug: SHOW_LAYOUT_MODE_DEBUG,
           onToggleDate: (date: string): void => {
             this.toggleDate(date);
           },
@@ -241,7 +328,11 @@ struct Index {
 
   private async exportJson(): Promise<void> {
     try {
-      const context: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+      const context: common.UIAbilityContext | undefined = this.getAbilityContext();
+      if (context === undefined) {
+        this.feedback = '导出失败，请稍后重试';
+        return;
+      }
       const saved: boolean = await JsonTransfer.export(context, this.markedDays);
       this.feedback = saved ? '已导出月迹 JSON' : '已取消导出';
     } catch (_error) {
@@ -251,6 +342,27 @@ struct Index {
 
   private hasDate(date: string): boolean {
     return this.markedDays.some((item: MenstrualDay): boolean => item.date === date);
+  }
+
+  private getAbilityContext(): common.UIAbilityContext | undefined {
+    const hostContext = this.getUIContext().getHostContext();
+    if (hostContext === undefined) {
+      return undefined;
+    }
+    return hostContext as common.UIAbilityContext;
+  }
+
+  private detachWindowListeners(targetWindow: window.Window): void {
+    try {
+      targetWindow.off('windowSizeChange', this.onWindowSizeChange);
+    } catch (_error) {
+      // The window may already be disposed during a page transition.
+    }
+    try {
+      targetWindow.off('windowRectChange', this.onWindowRectChange);
+    } catch (_error) {
+      // The window may already be disposed during a page transition.
+    }
   }
 
   private isFutureDate(date: string): boolean {

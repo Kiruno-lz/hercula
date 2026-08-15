@@ -10,6 +10,7 @@ const TEXT_COLOR: string = '#594B50';
 export struct CalendarComponent {
   @Prop markedDays: Array<MenstrualDay> = [];
   @Prop compact: boolean = false;
+  @Prop scrollLayout: boolean = false;
   onToggleDate: (date: string) => void = (_date: string): void => {};
 
   @State private calendarDate: Date = new Date();
@@ -108,7 +109,7 @@ export struct CalendarComponent {
           }
           Blank()
         }
-        .width('100%')
+        .width('85%')
       }
 
       Column({ space: 6 }) {
@@ -158,17 +159,22 @@ export struct CalendarComponent {
           }
         }
         .height(360)
-        .width('100%')
+        .width('92%')
       }
-      .padding({ left: 0, right: 0, top: '1.36%', bottom: 0 })
-      .width('100%')
+      .padding({ left: 0, right: 0, top: '4%', bottom: 0 })
+      .width('85%')
       .constraintSize({ maxWidth: 720 })
     }
-    .padding({ left: 20, right: 20, top: this.compact ? '3%' : '9.09%', bottom: '1.52%' })
+    .padding({
+      left: 20,
+      right: 20,
+      top: this.compact ? '3%' : (this.scrollLayout ? '6%' : '25%'),
+      bottom: '2%'
+    })
     .justifyContent(FlexAlign.Start)
     .alignItems(HorizontalAlign.Center)
     .width('100%')
-    .height('100%')
+    .height(this.scrollLayout ? 'auto' : '100%')
     .radialGradient({
       center: ['50%', '36%'],
       radius: '68%',
