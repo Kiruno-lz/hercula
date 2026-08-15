@@ -5,8 +5,7 @@ import { MenstrualDay } from '../domain/MenstrualData';
 import { formatShortDate, todayKey } from '../domain/DateUtils';
 import { parseTextDates, TextDateParseResult } from '../domain/TextDateParser';
 import { ImportValidationResult, validateImportDates } from '../domain/ImportValidator';
-import { CalendarComponent } from '../components/CalendarComponent';
-import { HistoryComponent } from '../components/HistoryComponent';
+import { ResponsivePageShell } from '../components/ResponsivePageShell';
 import { WelcomeComponent } from '../components/WelcomeComponent';
 import { LoadingComponent } from '../components/LoadingComponent';
 import { AboutComponent } from '../components/AboutComponent';
@@ -20,7 +19,6 @@ const GITHUB_REPOSITORY_URL: string = 'https://github.com/Kiruno-lz/hercula';
 @Component
 struct Index {
   @State private markedDays: Array<MenstrualDay> = [];
-  @State private currentPage: number = 0;
   @State private feedback: string = '';
   @State private welcomeDialogOpen: boolean = false;
   @State private aboutDialogOpen: boolean = false;
@@ -180,34 +178,19 @@ struct Index {
       if (this.isLoading) {
         LoadingComponent()
       } else {
-        Swiper() {
-          CalendarComponent({
-            markedDays: this.markedDays,
-            onToggleDate: (date: string): void => {
-              this.toggleDate(date);
-            }
-          })
-          HistoryComponent({
-            markedDays: this.markedDays,
-            onImport: (): void => this.openTextImportDialog(),
-            onExport: (): void => {
-              this.exportJson();
-            },
-            onAbout: (): void => {
-              this.aboutDialogOpen = true;
-            }
-          })
-        }
-        .index(this.currentPage)
-        .vertical(true)
-        .loop(false)
-        .onChange((index: number): void => {
-          this.currentPage = index;
+        ResponsivePageShell({
+          markedDays: this.markedDays,
+          onToggleDate: (date: string): void => {
+            this.toggleDate(date);
+          },
+          onImport: (): void => this.openTextImportDialog(),
+          onExport: (): void => {
+            this.exportJson();
+          },
+          onAbout: (): void => {
+            this.aboutDialogOpen = true;
+          }
         })
-        .indicator(false)
-        .width('100%')
-        .height('100%')
-        .backgroundColor(PINK_BACKGROUND)
       }
       if (this.textImportDialogOpen) {
         TextImportComponent({

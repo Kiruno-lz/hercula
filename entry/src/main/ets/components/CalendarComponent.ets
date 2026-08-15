@@ -9,6 +9,7 @@ const TEXT_COLOR: string = '#594B50';
 @Component
 export struct CalendarComponent {
   @Prop markedDays: Array<MenstrualDay> = [];
+  @Prop compact: boolean = false;
   onToggleDate: (date: string) => void = (_date: string): void => {};
 
   @State private calendarDate: Date = new Date();
@@ -93,20 +94,22 @@ export struct CalendarComponent {
   @Builder
   private buildCalendarPage() {
     Column() {
-      Row() {
-        Column({ space: 2 }) {
-          Text('月迹')
-            .fontSize(68)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(TEXT_COLOR)
-          Text('hercula')
-            .fontSize(24)
-            .fontColor(ACCENT_COLOR)
-            .letterSpacing(2)
+      if (!this.compact) {
+        Row() {
+          Column({ space: 2 }) {
+            Text('月迹')
+              .fontSize(68)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(TEXT_COLOR)
+            Text('hercula')
+              .fontSize(24)
+              .fontColor(ACCENT_COLOR)
+              .letterSpacing(2)
+          }
+          Blank()
         }
-        Blank()
+        .width('100%')
       }
-      .width('100%')
 
       Column({ space: 6 }) {
         Row({ space: 8 }) {
@@ -161,7 +164,7 @@ export struct CalendarComponent {
       .width('100%')
       .constraintSize({ maxWidth: 720 })
     }
-    .padding({ left: 20, right: 20, top: '9.09%', bottom: '1.52%' })
+    .padding({ left: 20, right: 20, top: this.compact ? '3%' : '9.09%', bottom: '1.52%' })
     .justifyContent(FlexAlign.Start)
     .alignItems(HorizontalAlign.Center)
     .width('100%')
