@@ -1,10 +1,12 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { TextDateParseResult, parseTextDates } from '../main/ets/domain/TextDateParser';
 
-function assertParseResult(input: string, dates: Array<string>, invalidTokens: Array<string>): void {
-  const result: TextDateParseResult = parseTextDates(input);
+function assertParseResult(input: string, dates: Array<string>, invalidTokens: Array<string>, duplicateDates: Array<string> = [],
+  currentYear: number = 2026): void {
+  const result: TextDateParseResult = parseTextDates(input, currentYear);
   expect(result.dates).assertDeepEquals(dates);
   expect(result.invalidTokens).assertDeepEquals(invalidTokens);
+  expect(result.duplicateDates).assertDeepEquals(duplicateDates);
 }
 
 export default function textDateParserTest() {
@@ -29,7 +31,7 @@ export default function textDateParserTest() {
 
     it('deduplicates repeated dates', 0, () => {
       assertParseResult('2026-08-14 2026/08/14 2026年8月14日',
-        ['2026-08-14'], []);
+        ['2026-08-14'], [], ['2026-08-14']);
     });
 
     it('rejects impossible calendar dates', 0, () => {
@@ -41,8 +43,23 @@ export default function textDateParserTest() {
       assertParseResult('2026-08/14', [], ['2026-08/14']);
     });
 
-    it('rejects unsupported year and compact formats', 0, () => {
-      assertParseResult('26-08-14, 20260814', [], ['26-08-14', '20260814']);
+    it('supports years with omitted 20 prefix', 0, () => {
+      assertParseResult('26-08-14, 26/08/15, 26年8月16日',
+        ['2026-08-14', '2026-08-15', '2026-08-16'], []);
+    });
+
+    it('supports fixed-length compact dates', 0, () => {
+      assertParseResult('20260814, 260815, 0816, 开始：20260817',
+        ['2026-08-14', '2026-08-15', '2026-08-16', '2026-08-17'], []);
+    });
+
+    it('rejects compact dates without zero padding', 0, () => {
+      assertParseResult('2026814, 26815, 816', [], ['2026814', '26815', '816']);
+    });
+
+    it('uses the current year when a date omits its year', 0, () => {
+      assertParseResult('8-14, 8/15, 8.16, 8月17日',
+        ['2026-08-14', '2026-08-15', '2026-08-16', '2026-08-17'], [], []);
     });
 
     it('rejects Chinese notation without the day suffix', 0, () => {

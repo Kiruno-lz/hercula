@@ -1,6 +1,6 @@
 import { common } from '@kit.AbilityKit';
 import { PreferencesStore } from '../data/PreferencesStore';
-import { JsonImportResult, JsonTransfer } from '../data/JsonTransfer';
+import { JsonDateCandidateResult, JsonTransfer } from '../data/JsonTransfer';
 import {
   derivePeriods,
   MenstrualDay,
@@ -8,6 +8,8 @@ import {
   predictNextPeriod
 } from '../domain/MenstrualData';
 import { formatShortDate, todayKey } from '../domain/DateUtils';
+import { parseTextDates, TextDateParseResult } from '../domain/TextDateParser';
+import { ImportValidationResult, validateImportDates } from '../domain/ImportValidator';
 
 const PINK_BACKGROUND: string = '#F8F2F3';
 const PERIOD_COLOR: string = '#C98291';
@@ -18,6 +20,11 @@ const ACTION_MENU_OPEN_DURATION: number = 160;
 const ACTION_MENU_CLOSE_DURATION: number = 180;
 const ACTION_MENU_TEXT_DURATION: number = 160;
 const ACTION_MENU_TEXT_DELAY: number = 120;
+const IMPORT_DIALOG_HEIGHT: number = 420;
+const IMPORT_TEXT_AREA_HEIGHT: number = 148;
+const IMPORT_NOTICE_HEIGHT: number = 40;
+const ABOUT_DIALOG_HEIGHT: number = 390;
+const GITHUB_REPOSITORY_URL: string = 'https://github.com/Kiruno-lz/hercula';
 
 @Entry
 @Component
@@ -33,6 +40,21 @@ struct Index {
   @State private feedback: string = '';
   @State private jumpMode: string = '';
   @State private actionMenuOpen: boolean = false;
+  @State private welcomeDialogOpen: boolean = false;
+  @State private aboutDialogOpen: boolean = false;
+  @State private textImportDialogOpen: boolean = false;
+  @State private textImportInput: string = '';
+  @State private textImportNotice: string = '';
+  @State private jsonImportIssues: TextDateParseResult = { dates: [], invalidTokens: [], duplicateDates: [] };
+  @State private importConfirmationOpen: boolean = false;
+  @State private importValidation: ImportValidationResult = {
+    candidateDates: [],
+    validDates: [],
+    futureDates: [],
+    duplicateDates: [],
+    existingDates: [],
+    invalidTokens: []
+  };
   @State private isLoading: boolean = true;
   private store: PreferencesStore | undefined = undefined;
 
@@ -57,20 +79,11 @@ struct Index {
   }
 
   private showWelcomeDialog(): void {
-    AlertDialog.show({
-      title: '欢迎使用月迹',
-      message: '点击任意日期即可记录经期，再次点击即可取消。你也可以从历史页导入已有记录。',
-      primaryButton: {
-        value: '开始记录',
-        action: (): void => {}
-      },
-      secondaryButton: {
-        value: '导入数据',
-        action: (): void => {
-          this.importJson();
-        }
-      }
-    });
+    this.welcomeDialogOpen = true;
+  }
+
+  private closeWelcomeDialog(): void {
+    this.welcomeDialogOpen = false;
   }
 
   private async toggleDate(date: string): Promise<void> {
@@ -152,6 +165,94 @@ struct Index {
     this.actionMenuOpen = false;
   }
 
+  private openTextImportDialog(): void {
+    this.closeActionMenu();
+    this.textImportInput = '';
+    this.textImportNotice = '';
+    this.jsonImportIssues = { dates: [], invalidTokens: [], duplicateDates: [] };
+    this.textImportDialogOpen = true;
+  }
+
+  private closeTextImportDialog(): void {
+    this.textImportDialogOpen = false;
+    this.textImportInput = '';
+    this.textImportNotice = '';
+    this.jsonImportIssues = { dates: [], invalidTokens: [], duplicateDates: [] };
+  }
+
+  private async loadJsonIntoTextImport(): Promise<void> {
+    try {
+      const context: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+      const result: JsonDateCandidateResult | undefined = await JsonTransfer.selectDateCandidates(context);
+      if (result === undefined) {
+        this.textImportNotice = '未选择文件，当前输入内容未改变';
+        return;
+      }
+      this.textImportInput = result.dates.join('\n');
+      this.jsonImportIssues = {
+        dates: result.dates,
+        invalidTokens: result.invalidTokens,
+        duplicateDates: result.duplicateDates
+      };
+      const issueCount: number = result.invalidTokens.length + result.duplicateDates.length;
+      this.textImportNotice = issueCount === 0
+        ? `已加载 ${result.dates.length} 个日期，可继续校对`
+        : `已加载 ${result.dates.length} 个日期，另有 ${issueCount} 项待确认`;
+    } catch (_error) {
+      this.textImportNotice = 'JSON 解析失败：请确认文件符合月迹 schema v1';
+    }
+  }
+
+  private continueTextImport(): void {
+    const result: TextDateParseResult = parseTextDates(this.textImportInput);
+    const validation: ImportValidationResult = validateImportDates({
+      dates: result.dates,
+      invalidTokens: result.invalidTokens.concat(this.jsonImportIssues.invalidTokens),
+      duplicateDates: result.duplicateDates.concat(this.jsonImportIssues.duplicateDates),
+      existingDates: this.markedDays.map((item: MenstrualDay): string => item.date),
+      today: todayKey()
+    });
+    if (validation.candidateDates.length === 0 && validation.invalidTokens.length === 0) {
+      this.feedback = '请输入至少一个明确格式的日期';
+      return;
+    }
+    this.importValidation = validation;
+    this.textImportDialogOpen = false;
+    this.importConfirmationOpen = true;
+  }
+
+  private closeImportConfirmation(): void {
+    this.importConfirmationOpen = false;
+    this.textImportDialogOpen = true;
+  }
+
+  private resetImportValidation(): void {
+    this.importValidation = {
+      candidateDates: [],
+      validDates: [],
+      futureDates: [],
+      duplicateDates: [],
+      existingDates: [],
+      invalidTokens: []
+    };
+  }
+
+  private async confirmImport(): Promise<void> {
+    const days: Array<MenstrualDay> = this.importValidation.validDates.map((date: string): MenstrualDay => {
+      return { date: date, source: 'import' };
+    });
+    if (days.length === 0) {
+      this.feedback = '没有可导入的新日期';
+      return;
+    }
+    this.markedDays = this.markedDays.concat(days);
+    await this.persistDays();
+    this.importConfirmationOpen = false;
+    this.closeTextImportDialog();
+    this.resetImportValidation();
+    this.feedback = `已导入并合并 ${days.length} 个日期`;
+  }
+
   private selectYear(year: number): void {
     this.calendarDate = new Date(year, this.calendarDate.getMonth(), 1);
     this.jumpMode = '';
@@ -183,6 +284,18 @@ struct Index {
         .width('100%')
         .height('100%')
         .backgroundColor(PINK_BACKGROUND)
+      }
+      if (this.textImportDialogOpen) {
+        this.buildTextImportDialog();
+      }
+      if (this.importConfirmationOpen) {
+        this.buildImportConfirmationDialog();
+      }
+      if (this.welcomeDialogOpen) {
+        this.buildWelcomeDialog();
+      }
+      if (this.aboutDialogOpen) {
+        this.buildAboutDialog();
       }
     }
     .width('100%')
@@ -241,6 +354,421 @@ struct Index {
   }
 
   @Builder
+  private buildWelcomeDialog() {
+    Stack() {
+      Column()
+        .width('100%')
+        .height('100%')
+        .backgroundColor('#38F1DDE1')
+        .backgroundBlurStyle(BlurStyle.Thin, { scale: 0.1 })
+        .onClick((): void => {})
+
+      Column({ space: 16 }) {
+        Text('欢迎使用月迹')
+          .fontSize(28)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(TEXT_COLOR)
+          .textAlign(TextAlign.Center)
+          .width('100%')
+
+        Column({ space: 4 }) {
+          Text('点击日期，记录开始日')
+            .fontSize(14)
+            .fontColor(ACCENT_COLOR)
+            .textAlign(TextAlign.Center)
+            .width('100%')
+          Text('再次点击，可取消记录')
+            .fontSize(14)
+            .fontColor(ACCENT_COLOR)
+            .textAlign(TextAlign.Center)
+            .width('100%')
+        }
+
+        Blank()
+          .height(20)
+
+        Row({ space: 8 }) {
+          Circle()
+            .width(8)
+            .height(8)
+            .fill('#B9CDE5')
+          Text('记录仅保存在本地')
+            .fontSize(13)
+            .fontColor(MUTED_TEXT)
+        }
+
+        Blank()
+          .layoutWeight(1)
+
+        Row({ space: 16 }) {
+          Button('开始记录')
+            .fontSize(16)
+            .fontWeight(FontWeight.Medium)
+            .fontColor('#FFF9FA')
+            .backgroundColor('#D78193')
+            .borderRadius(26)
+            .height(52)
+            .layoutWeight(1)
+            .padding(0)
+            .onClick((): void => {
+              this.closeWelcomeDialog();
+            })
+          Button('导入数据')
+            .fontSize(16)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(ACCENT_COLOR)
+            .backgroundColor('#E9FFF9FA')
+            .border({ width: 1, color: '#55FFFFFF' })
+            .borderRadius(26)
+            .height(52)
+            .layoutWeight(1)
+            .padding(0)
+            .shadow({ radius: 12, color: '#208B5B64', offsetX: 0, offsetY: 4 })
+            .onClick((): void => {
+              this.closeWelcomeDialog();
+              this.openTextImportDialog();
+            })
+        }
+        .width('100%')
+      }
+      .width('82%')
+      .height(320)
+      .constraintSize({ maxWidth: 420 })
+      .padding({ left: 28, right: 28, top: 46, bottom: 46 })
+      .backgroundColor('#E9FFF9FA')
+      .backgroundBlurStyle(BlurStyle.Thin, { scale: 0.1 })
+      .backgroundEffect({ radius: 28, saturation: 1.04, brightness: 1.03 })
+      .border({ width: 1, color: '#B8FFFFFF' })
+      .borderRadius(24)
+      .shadow({ radius: 28, color: '#459B7280', offsetX: 0, offsetY: 12 })
+      .transition(TransitionEffect.OPACITY
+        .combine(TransitionEffect.scale({ x: 0.94, y: 0.94 }))
+        .combine(TransitionEffect.translate({ y: 18 }))
+        .animation({ duration: 220, curve: Curve.EaseOut }))
+    }
+    .width('100%')
+    .height('100%')
+    .zIndex(30)
+  }
+
+  @Builder
+  private buildAboutDialog() {
+    Stack() {
+      Column()
+        .width('100%')
+        .height('100%')
+        .backgroundColor('#38F1DDE1')
+        .backgroundBlurStyle(BlurStyle.Thin, { scale: 0.1 })
+        .onClick((): void => {
+          this.aboutDialogOpen = false;
+        })
+
+      Column({ space: 12 }) {
+        Text('关于月迹')
+          .fontSize(28)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(TEXT_COLOR)
+          .textAlign(TextAlign.Center)
+          .width('100%')
+
+        Text('hercula · 本地隐私记录')
+          .fontSize(15)
+          .fontColor(ACCENT_COLOR)
+          .textAlign(TextAlign.Center)
+          .width('100%')
+
+        Text('☕')
+          .fontSize(52)
+          .opacity(0.72)
+          .textAlign(TextAlign.Center)
+          .width('100%')
+
+        Text('支持月迹')
+          .fontSize(22)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(TEXT_COLOR)
+          .textAlign(TextAlign.Center)
+          .width('100%')
+
+        Text('Buy Me a Coffee')
+          .fontSize(15)
+          .fontColor(ACCENT_COLOR)
+          .textAlign(TextAlign.Center)
+          .width('100%')
+
+        Text('喜欢这个项目的话，点个 Star')
+          .fontSize(14)
+          .fontColor(MUTED_TEXT)
+          .textAlign(TextAlign.Center)
+          .width('100%')
+
+        Text(GITHUB_REPOSITORY_URL)
+          .fontSize(12)
+          .fontColor(ACCENT_COLOR)
+          .textAlign(TextAlign.Center)
+          .width('100%')
+          .maxLines(2)
+
+        Text('点击任意位置关闭')
+          .fontSize(12)
+          .fontColor(MUTED_TEXT)
+          .textAlign(TextAlign.Center)
+          .width('100%')
+      }
+      .width('82%')
+      .height(ABOUT_DIALOG_HEIGHT)
+      .constraintSize({ maxWidth: 420 })
+      .padding({ left: 28, right: 28, top: 28, bottom: 24 })
+      .backgroundColor('#E9FFF9FA')
+      .backgroundBlurStyle(BlurStyle.Thin, { scale: 0.1 })
+      .backgroundEffect({ radius: 28, saturation: 1.04, brightness: 1.03 })
+      .border({ width: 1, color: '#B8FFFFFF' })
+      .borderRadius(24)
+      .shadow({ radius: 28, color: '#459B7280', offsetX: 0, offsetY: 12 })
+      .onClick((): void => {
+        this.aboutDialogOpen = false;
+      })
+      .transition(TransitionEffect.OPACITY
+        .combine(TransitionEffect.scale({ x: 0.94, y: 0.94 }))
+        .combine(TransitionEffect.translate({ y: 18 }))
+        .animation({ duration: 220, curve: Curve.EaseOut }))
+    }
+    .width('100%')
+    .height('100%')
+    .zIndex(30)
+  }
+
+  @Builder
+  private buildTextImportDialog() {
+    Stack() {
+      Column()
+        .width('100%')
+        .height('100%')
+        .backgroundColor('#38F1DDE1')
+        .backgroundBlurStyle(BlurStyle.Thin, { scale: 0.1 })
+        .onClick((): void => {})
+
+      Column({ space: 12 }) {
+        Column({ space: 4 }) {
+          Text('导入日期')
+            .fontSize(28)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(TEXT_COLOR)
+          Text('每行输入一个经期开始日期')
+            .fontSize(14)
+            .fontColor(ACCENT_COLOR)
+        }
+        .alignItems(HorizontalAlign.Start)
+        .width('100%')
+
+        TextArea({
+          placeholder: '例如：2026年8月10日、8月10日或26-8-10',
+          text: this.textImportInput
+        })
+          .fontSize(16)
+          .fontColor(TEXT_COLOR)
+          .placeholderColor(MUTED_TEXT)
+          .textAlign(TextAlign.Start)
+          .backgroundColor('#35FFF9FA')
+          .borderRadius(20)
+          .padding({ left: 18, right: 18, top: 16, bottom: 16 })
+          .width('100%')
+          .height(IMPORT_TEXT_AREA_HEIGHT)
+          .onChange((value: string): void => {
+            this.textImportInput = value;
+          })
+
+        Text('支持 -、/、. 和中文年月日分隔；年份可省略或省略前面的 20')
+          .fontSize(13)
+          .fontColor(TEXT_COLOR)
+          .width('100%')
+
+        if (this.textImportNotice.length > 0) {
+          Text(this.textImportNotice)
+            .fontSize(13)
+            .fontColor(ACCENT_COLOR)
+            .width('100%')
+            .maxLines(2)
+        }
+
+        Button('从 JSON 文件加载')
+          .fontSize(15)
+          .fontColor(ACCENT_COLOR)
+          .backgroundColor('#EAD1D6')
+          .borderRadius(22)
+          .height(44)
+          .width('100%')
+          .padding(0)
+          .onClick((): void => {
+            this.loadJsonIntoTextImport();
+          })
+
+        Row({ space: 14 }) {
+          Button('取消')
+            .fontSize(16)
+            .fontColor(ACCENT_COLOR)
+            .backgroundColor('#22FFFFFF')
+            .border({ width: 1, color: '#55FFFFFF' })
+            .borderRadius(22)
+            .height(44)
+            .layoutWeight(1)
+            .padding(0)
+            .onClick((): void => {
+              this.closeTextImportDialog();
+            })
+          Button('继续')
+            .fontSize(16)
+            .fontWeight(FontWeight.Medium)
+            .fontColor('#FFF9FA')
+            .backgroundColor('#D78193')
+            .borderRadius(22)
+            .height(44)
+            .layoutWeight(1)
+            .padding(0)
+            .onClick((): void => {
+              this.continueTextImport();
+            })
+        }
+        .width('100%')
+      }
+      .width('82%')
+      .height(this.textImportNotice.length > 0
+        ? IMPORT_DIALOG_HEIGHT + IMPORT_NOTICE_HEIGHT
+        : IMPORT_DIALOG_HEIGHT)
+      .constraintSize({ maxWidth: 420 })
+      .padding({ left: 24, right: 24, top: 24, bottom: 20 })
+      .backgroundColor('#E9FFF9FA')
+      .backgroundBlurStyle(BlurStyle.Thin, { scale: 0.1 })
+      .backgroundEffect({ radius: 28, saturation: 1.04, brightness: 1.03 })
+      .border({ width: 1, color: '#B8FFFFFF' })
+      .borderRadius(24)
+      .shadow({ radius: 28, color: '#459B7280', offsetX: 0, offsetY: 12 })
+      .transition(TransitionEffect.OPACITY
+        .combine(TransitionEffect.scale({ x: 0.94, y: 0.94 }))
+        .animation({ duration: 220, curve: Curve.EaseOut }))
+    }
+    .width('100%')
+    .height('100%')
+    .zIndex(20)
+  }
+
+  @Builder
+  private buildImportConfirmationDialog() {
+    Stack() {
+      Column()
+        .width('100%')
+        .height('100%')
+        .backgroundColor('#38F1DDE1')
+        .backgroundBlurStyle(BlurStyle.Thin, { scale: 0.1 })
+        .onClick((): void => {})
+
+      Column({ space: 12 }) {
+        Column({ space: 4 }) {
+          Text('确认导入')
+            .fontSize(28)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(TEXT_COLOR)
+          Text(this.importSummaryText())
+            .fontSize(14)
+            .fontColor(ACCENT_COLOR)
+        }
+        .alignItems(HorizontalAlign.Start)
+        .width('100%')
+
+        Scroll() {
+          Column({ space: 4 }) {
+            ForEach(this.importValidation.candidateDates, (date: string) => {
+              this.buildImportPreviewRow(date, this.importStatus(date));
+            }, (date: string): string => `candidate-${date}`)
+            ForEach(this.importValidation.invalidTokens, (token: string) => {
+              this.buildImportPreviewRow(token, '无效内容');
+            }, (token: string): string => `invalid-${token}`)
+          }
+          .justifyContent(FlexAlign.Start)
+          .alignItems(HorizontalAlign.Start)
+          .width('100%')
+        }
+        .layoutWeight(1)
+        .width('100%')
+        .align(Alignment.TopStart)
+        .scrollBar(BarState.Auto)
+
+        if (this.importValidation.invalidTokens.length > 0 || this.importValidation.futureDates.length > 0) {
+          Text('无效日期和未来日期不会写入记录')
+            .fontSize(13)
+            .fontColor(MUTED_TEXT)
+            .width('100%')
+            .maxLines(2)
+        }
+
+        Row({ space: 14 }) {
+          Button('返回')
+            .fontSize(16)
+            .fontColor(ACCENT_COLOR)
+            .backgroundColor('#22FFFFFF')
+            .border({ width: 1, color: '#55FFFFFF' })
+            .borderRadius(22)
+            .height(44)
+            .layoutWeight(1)
+            .padding(0)
+            .onClick((): void => {
+              this.closeImportConfirmation();
+            })
+          Button(`导入 ${this.importValidation.validDates.length} 条`)
+            .fontSize(16)
+            .fontWeight(FontWeight.Medium)
+            .fontColor('#FFF9FA')
+            .backgroundColor('#D78193')
+            .borderRadius(22)
+            .height(44)
+            .layoutWeight(1)
+            .padding(0)
+            .enabled(this.importValidation.validDates.length > 0)
+            .onClick((): void => {
+              this.confirmImport();
+            })
+        }
+        .width('100%')
+      }
+      .width('82%')
+      .height(IMPORT_DIALOG_HEIGHT)
+      .constraintSize({ maxWidth: 420 })
+      .padding({ left: 24, right: 24, top: 24, bottom: 20 })
+      .backgroundColor('#E9FFF9FA')
+      .backgroundBlurStyle(BlurStyle.Thin, { scale: 0.1 })
+      .backgroundEffect({ radius: 28, saturation: 1.04, brightness: 1.03 })
+      .border({ width: 1, color: '#B8FFFFFF' })
+      .borderRadius(24)
+      .shadow({ radius: 28, color: '#459B7280', offsetX: 0, offsetY: 12 })
+      .transition(TransitionEffect.OPACITY
+        .combine(TransitionEffect.scale({ x: 0.94, y: 0.94 }))
+        .animation({ duration: 220, curve: Curve.EaseOut }))
+    }
+    .width('100%')
+    .height('100%')
+    .zIndex(21)
+  }
+
+  @Builder
+  private buildImportPreviewRow(value: string, status: string) {
+    Row() {
+      Text(value)
+        .fontSize(15)
+        .fontColor(status === '无效内容' ? ACCENT_COLOR : TEXT_COLOR)
+        .layoutWeight(1)
+        .maxLines(1)
+      Text(status)
+        .fontSize(13)
+        .fontColor(status === '新增' ? ACCENT_COLOR : MUTED_TEXT)
+    }
+    .padding({ left: 14, right: 14 })
+    .height(38)
+    .width('100%')
+    .backgroundColor(status === '新增' ? '#18FFF9FA' : '#12EAD1D6')
+    .borderRadius(14)
+  }
+
+  @Builder
   private buildCalendarPage() {
     Column() {
       Row() {
@@ -295,7 +823,7 @@ struct Index {
             .width('100%')
             .height(183)
             .backgroundColor('#E8FFF9FA')
-            .backgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THICK)
+            .backgroundBlurStyle(BlurStyle.Thin, { scale: 0.1 })
             .backgroundEffect({ radius: 28, saturation: 1.06, brightness: 1.04 })
             .border({ width: 1, color: '#A8FFFFFF' })
             .borderRadius(20)
@@ -548,7 +1076,7 @@ struct Index {
                 .height(40)
                 .padding({ left: 20, right: 20 })
                 .onClick((): void => {
-                  this.importJson();
+                  this.openTextImportDialog();
                 })
             }
             .justifyContent(FlexAlign.Center)
@@ -641,7 +1169,7 @@ struct Index {
             })
             .onClick((): void => {
               this.closeActionMenu();
-              this.importJson();
+              this.openTextImportDialog();
             })
           Divider()
             .strokeWidth(1)
@@ -687,7 +1215,7 @@ struct Index {
             })
             .onClick((): void => {
               this.closeActionMenu();
-              this.feedback = '月迹 hercula · 本地隐私记录';
+              this.aboutDialogOpen = true;
             })
         }
         .padding({ left: 18, right: 18, top: 16, bottom: 16 })
@@ -703,7 +1231,7 @@ struct Index {
       .width(this.actionMenuOpen ? 184 : 44)
       .height(this.actionMenuOpen ? 172 : 44)
       .backgroundColor('#E9FFF9FA')
-      .backgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THICK)
+      .backgroundBlurStyle(BlurStyle.Thin, { scale: 0.1 })
       .backgroundEffect({ radius: 24, saturation: 1.06, brightness: 1.03 })
       .border({ width: 1, color: '#B8FFFFFF' })
       .borderRadius(this.actionMenuOpen ? 20 : 22)
@@ -847,6 +1375,29 @@ struct Index {
     return period.durationDays / this.periodScaleMax();
   }
 
+  private importSummaryText(): string {
+    const recognized: number = this.importValidation.candidateDates.length +
+      this.importValidation.invalidTokens.length;
+    const duplicateCount: number = this.importValidation.duplicateDates.length +
+      this.importValidation.existingDates.length;
+    const failedCount: number = this.importValidation.futureDates.length +
+      this.importValidation.invalidTokens.length;
+    return `识别 ${recognized} 条 · 可导入 ${this.importValidation.validDates.length} 条 · 重复 ${duplicateCount} 条 · 失败 ${failedCount} 条`;
+  }
+
+  private importStatus(date: string): string {
+    if (this.importValidation.futureDates.includes(date)) {
+      return '未来日期';
+    }
+    if (this.importValidation.existingDates.includes(date)) {
+      return '已存在';
+    }
+    if (this.importValidation.duplicateDates.includes(date)) {
+      return '重复';
+    }
+    return '新增';
+  }
+
   private periodScaleMax(): number {
     let maxDuration: number = 1;
     this.currentPeriods().forEach((item: PeriodSummary): void => {
@@ -876,56 +1427,6 @@ struct Index {
 
   private isFutureDate(date: string): boolean {
     return date > todayKey();
-  }
-
-  private async importJson(): Promise<void> {
-    try {
-      const context: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
-      const result: JsonImportResult | undefined = await JsonTransfer.import(context);
-      if (result === undefined) {
-        this.feedback = '未导入文件，原有记录未改变';
-        return;
-      }
-      const importableDays: Array<MenstrualDay> = result.days.filter((item: MenstrualDay): boolean => {
-        return !this.isFutureDate(item.date);
-      });
-      if (importableDays.length === 0) {
-        this.feedback = '导入失败：文件中没有今天或更早的经期日';
-        return;
-      }
-      const existingDates: Set<string> = new Set<string>();
-      this.markedDays.forEach((item: MenstrualDay): void => {
-        existingDates.add(item.date);
-      });
-      const newCount: number = importableDays.filter((item: MenstrualDay): boolean => {
-        return !existingDates.has(item.date);
-      }).length;
-      AlertDialog.show({
-        title: '导入预览',
-        message: `文件中有 ${importableDays.length} 个有效日期，将新增 ${newCount} 个日期。`,
-        primaryButton: {
-          value: '取消',
-          action: (): void => {}
-        },
-        secondaryButton: {
-          value: '确认导入',
-          action: (): void => {
-            this.applyImportedDays(importableDays);
-          }
-        }
-      });
-    } catch (_error) {
-      this.feedback = '导入失败：请确认文件是月迹 JSON';
-    }
-  }
-
-  private async applyImportedDays(days: Array<MenstrualDay>): Promise<void> {
-    const importableDays: Array<MenstrualDay> = days.filter((item: MenstrualDay): boolean => {
-      return !this.isFutureDate(item.date);
-    });
-    this.markedDays = this.markedDays.concat(importableDays);
-    await this.persistDays();
-    this.feedback = `已导入并合并 ${importableDays.length} 个日期`;
   }
 
   private async exportJson(): Promise<void> {
