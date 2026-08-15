@@ -13,19 +13,19 @@
 
 ## 2. 模块边界
 
-当前继续使用单模块，目录按职责分层，避免过早拆成多个 HAR/HSP。多设备布局确定后，再把 `Index.ets` 按稳定的 UI 边界拆分为组件：
+当前继续使用单模块，目录按职责分层，避免拆成多个 HAR/HSP。第一轮基础组件已经从 `Index.ets` 拆出，后续只在页面壳中增加多设备组合：
 
 ```text
 entry/src/main/ets/
 ├── entryability/          # UIAbility 生命周期与窗口入口
 ├── pages/                  # 页面级容器，负责组装两个展示页
-├── components/             # Calendar, HistoryChart, ImportPreview, DesignTokens
+├── components/             # Calendar, History, ActionMenu, Welcome
 ├── domain/                 # 日期、经期分组、统计与预测的纯业务逻辑
 ├── data/                   # PreferencesStore、导入导出 DTO、迁移
 └── parser/                 # JSON 校验；文本/OCR 暂缓
 ```
 
-当前实现仍集中在 `pages/Index.ets`。下一步先抽取基础 UI 组件和状态/事件契约，在当前单列布局中替换并保持视觉不变；之后再由响应式页面壳组合单列或双排。页面只订阅状态对象，不在视觉组件中直接读写 Preferences；导入解析也不直接修改状态，必须经过预览确认动作。
+当前 `pages/Index.ets` 仍负责页面状态、Preferences 和导入确认流程；`components/CalendarComponent.ets`、`HistoryComponent.ets`、`ActionMenuComponent.ets` 与 `WelcomeComponent.ets` 已在单列布局中替换原有内联视图。组件只通过 `@Prop` 和回调接收状态，不直接读写 Preferences；导入解析也不直接修改状态，必须经过预览确认动作。
 
 ## 2.1 响应式布局与组件边界
 
