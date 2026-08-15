@@ -12,3 +12,4 @@ node_modules/
 *.app
 local.properties
 signingConfigs/
+build-profile.json5.signed
