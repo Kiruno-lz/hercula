@@ -9,6 +9,7 @@
 - [实施方案](./research/implementation-plan.md)：按可运行增量拆解的开发顺序、验收标准与风险控制。
 - [需求审查归档](./_archive/requirements-review.md)：对原始想法中的歧义、技术误区和范围偏移进行审查。
 - [JSON Schema 规格](./json_SPEC.md)：首版导入导出的数据契约与迁移规则。
+- [导入测试案例](./examples/text-date-import-cases.md)：文本日期、JSON、重复、未来和错误 schema 的可复现案例。
 - [UI 动效探索](./research/ui-motion-exploration.md)：已实现动效、候选动效和多设备动效约束。
 - [响应式布局与组件边界探索](./research/responsive-layout-and-component-boundaries.md)：双排布局、窗口断点与 `Index.ets` 拆分顺序。
 - [基础 UI 组件设计任务](./research/ui-component-design-tasks.md)：按组件逐项设计、评审和构建的任务列表。

@@ -92,4 +92,8 @@ export PATH="/Applications/DevEco-Studio.app/Contents/tools/hvigor/bin:/Applicat
 
 ## 支持项目
 
-Buy Me a Coffee 卡片暂不放入应用界面。需要确定收款平台、公开链接和展示位置后，再加入 README 或后续设置页；在此之前不放置虚构链接。
+关于软件窗口中包含 Buy Me a Coffee 风格的支持卡片。项目公开仓库：
+
+[https://github.com/Kiruno-lz/hercula](https://github.com/Kiruno-lz/hercula)
+
+如果喜欢月迹，欢迎给仓库点个 Star。收款平台链接暂未配置，应用不会放置虚构的支付地址。

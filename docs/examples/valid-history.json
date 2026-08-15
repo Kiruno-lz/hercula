@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "exportedAt": "2026-08-14T00:00:00.000Z",
+  "days": [
+    { "date": "2026-05-09", "source": "manual" },
+    { "date": "2026-06-16", "source": "import" },
+    { "date": "2026-07-18", "source": "manual" }
+  ]
+}
