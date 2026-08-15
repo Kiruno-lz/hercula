@@ -110,13 +110,22 @@ export class JsonTransfer {
       exportedAt: new Date().toISOString(),
       days: normalizeDays(days)
     };
-    const file = fs.openSync(uris[0], fs.OpenMode.READ_WRITE);
+    let file: fs.File | undefined = undefined;
     try {
+      file = fs.openSync(uris[0], fs.OpenMode.READ_WRITE);
       fs.writeSync(file.fd, JSON.stringify(payload));
+      return true;
+    } catch (_error) {
+      return false;
     } finally {
-      fs.closeSync(file);
+      if (file !== undefined) {
+        try {
+          fs.closeSync(file);
+        } catch (_closeError) {
+          // The write result has already been determined; ignore close errors.
+        }
+      }
     }
-    return true;
   }
 
   static async import(context: common.UIAbilityContext): Promise<JsonImportResult | undefined> {
@@ -148,8 +157,9 @@ export class JsonTransfer {
   }
 
   private static readText(uri: string): string | undefined {
-    const file = fs.openSync(uri, fs.OpenMode.READ_ONLY);
+    let file: fs.File | undefined = undefined;
     try {
+      file = fs.openSync(uri, fs.OpenMode.READ_ONLY);
       const fileSize: number = fs.statSync(file.fd).size;
       if (fileSize <= 0 || fileSize > MAX_IMPORT_BYTES) {
         return undefined;
@@ -158,8 +168,16 @@ export class JsonTransfer {
       const options: ReadOptions = { offset: 0, length: fileSize };
       const readLength: number = fs.readSync(file.fd, arrayBuffer, options);
       return buffer.from(arrayBuffer, 0, readLength).toString('utf-8');
+    } catch (_error) {
+      return undefined;
     } finally {
-      fs.closeSync(file);
+      if (file !== undefined) {
+        try {
+          fs.closeSync(file);
+        } catch (_closeError) {
+          // There is no usable text result to recover from a close failure.
+        }
+      }
     }
   }
 }

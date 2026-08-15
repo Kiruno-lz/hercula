@@ -14,7 +14,11 @@ export class PreferencesStore {
 
   static async open(context: common.UIAbilityContext): Promise<PreferencesStore> {
     const store: PreferencesStore = new PreferencesStore();
-    store.preferencesData = await preferences.getPreferences(context, { name: STORE_NAME });
+    try {
+      store.preferencesData = await preferences.getPreferences(context, { name: STORE_NAME });
+    } catch (_error) {
+      store.preferencesData = undefined;
+    }
     return store;
   }
 
@@ -22,8 +26,8 @@ export class PreferencesStore {
     if (this.preferencesData === undefined) {
       return [];
     }
-    const raw: string = await this.preferencesData.get(DAYS_KEY, '[]') as string;
     try {
+      const raw: string = await this.preferencesData.get(DAYS_KEY, '[]') as string;
       const parsed: Array<MenstrualDay> = JSON.parse(raw) as Array<MenstrualDay>;
       return normalizeDays(parsed);
     } catch (_error) {
@@ -35,22 +39,34 @@ export class PreferencesStore {
     if (this.preferencesData === undefined) {
       return;
     }
-    await this.preferencesData.put(DAYS_KEY, JSON.stringify(normalizeDays(days)));
-    await this.preferencesData.flush();
+    try {
+      await this.preferencesData.put(DAYS_KEY, JSON.stringify(normalizeDays(days)));
+      await this.preferencesData.flush();
+    } catch (_error) {
+      // Keep the in-memory state usable when local storage is unavailable.
+    }
   }
 
   async hasSeenWelcome(): Promise<boolean> {
     if (this.preferencesData === undefined) {
       return false;
     }
-    return await this.preferencesData.get(WELCOME_KEY, false) as boolean;
+    try {
+      return await this.preferencesData.get(WELCOME_KEY, false) as boolean;
+    } catch (_error) {
+      return false;
+    }
   }
 
   async markWelcomeShown(): Promise<void> {
     if (this.preferencesData === undefined) {
       return;
     }
-    await this.preferencesData.put(WELCOME_KEY, true);
-    await this.preferencesData.flush();
+    try {
+      await this.preferencesData.put(WELCOME_KEY, true);
+      await this.preferencesData.flush();
+    } catch (_error) {
+      // The welcome dialog may be shown again if the marker cannot be saved.
+    }
   }
 }
