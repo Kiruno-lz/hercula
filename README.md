@@ -27,8 +27,8 @@
 | 简单文本日期导入 | 已完成：确定性解析后进入候选日期确认 |
 | 图片 OCR 导入 | 搁置 |
 | 小艺 AI 接入 | 搁置，保留调研文档，不作为应用依赖 |
-| 多设备 UI 适配 | 第一版页面壳已完成；五种画布的截图与交互验收待推进 |
-| Index.ets 多组件拆分 | 已完成第一版响应式页面壳：compact、single、dual 三种窗口组合；五种画布验收待推进 |
+| 多设备 UI 适配 | 已完成四种布局模式的第一版页面壳；九个设备基线、十个方向画布的截图与交互验收待推进 |
+| Index.ets 多组件拆分 | 已完成第一版响应式页面壳：compact、single、dual、scroll；九个设备基线、十个方向画布验收待推进 |
 | Buy Me a Coffee 卡片 | 已完成：合并到“关于软件”窗口；收款平台链接待配置 |
 
 ## 设计原则
@@ -51,7 +51,7 @@ entry/src/main/ets/
 └── parser/           # JSON 校验；文本/OCR 暂缓
 ```
 
-当前 `Index.ets` 负责页面状态、Preferences 和导入流程编排；`ResponsivePageShell` 根据实际窗口宽高选择单列、紧凑或 Pura X 展开横向双排，基础展示与浮动窗口组件通过带默认值的 `@Prop` 与回调接入，不直接读写本地数据。
+当前 `Index.ets` 负责页面状态、Preferences 和导入流程编排；`ResponsivePageShell` 根据实际窗口宽高选择紧凑、单列、双排或整体滚动布局，基础展示与浮动窗口组件通过带默认值的 `@Prop` 与回调接入，不直接读写本地数据。
 
 ## 开发环境与构建
 
@@ -74,20 +74,16 @@ export PATH="/Applications/DevEco-Studio.app/Contents/tools/hvigor/bin:/Applicat
 2. **阶段 2：简单文本日期导入** — 待读取明确的年月日分隔符，转换为 JSON 候选并进入确认流程。
 3. **阶段 3：拍照/OCR 导入** — 搁置，不进入当前开发计划。
 
-小艺开放平台的 Agent/Skill 能力属于智能体开发与系统入口分发路线，不等同于应用内离线文本解析 API。相关结论记录在 [小艺 AI 调研](./docs/research/xiaoyi-ai-import-research.md)。
+小艺开放平台的 Agent/Skill 能力属于智能体开发与系统入口分发路线，不等同于应用内离线文本解析 API。相关结论记录在[归档的小艺 AI 调研](./docs/_archive/xiaoyi-ai-import-research.md)。
 
 ## 文档
 
 从 [docs/README.md](./docs/README.md) 开始阅读：
 
 - [产品与交互设计](./docs/research/product-design.md)
-- [技术设计](./docs/research/technical-design.md)
-- [实施方案与进度](./docs/research/implementation-plan.md)
+- [响应式布局规范](./docs/research/responsive-layout.md)
 - [JSON Schema 规格](./docs/json_SPEC.md)
-- [UI 动效探索](./docs/research/ui-motion-exploration.md)
-- [响应式布局与组件边界探索](./docs/research/responsive-layout-and-component-boundaries.md)
-- [基础 UI 组件设计任务](./docs/research/ui-component-design-tasks.md)
-- [小艺 AI 与 OCR 调研](./docs/research/xiaoyi-ai-import-research.md)
+- [归档文档](./docs/_archive/)
 - [研究资料入口](./docs/research/README.md)
 
 ## 支持项目

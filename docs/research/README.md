@@ -3,11 +3,11 @@
 调研基线：2026-08-14。以下以华为官方开发者文档、官方样例仓库和 AppGallery Connect 资料为主；外部博客不作为 API 或发布规则依据。
 
 - [ArkTS 与 ArkUI 工具链](./arkts-toolchain.md)
-- [组件、存储、文件与导入导出](./arkts-components.md)
 - [参考文档与参考仓库](./references.md)
 - [AppGallery Connect 与上架](./appgallery-release.md)
-- [小艺 AI、文本语义与图片识别](./xiaoyi-ai-import-research.md)
-- [响应式布局与组件边界探索](./responsive-layout-and-component-boundaries.md)
+- [响应式布局规范](./responsive-layout.md)
+
+已完成或暂不考虑的调研材料统一放在 [`docs/_archive/`](../_archive/) 中。
 
 ## 结论摘要
 
