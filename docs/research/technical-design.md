@@ -19,13 +19,13 @@
 entry/src/main/ets/
 ├── entryability/          # UIAbility 生命周期与窗口入口
 ├── pages/                  # 页面级容器，负责组装两个展示页
-├── components/             # Calendar, History, ActionMenu, Welcome
+├── components/             # Calendar, History, ActionMenu, Welcome, Loading, About, Import
 ├── domain/                 # 日期、经期分组、统计与预测的纯业务逻辑
 ├── data/                   # PreferencesStore、导入导出 DTO、迁移
 └── parser/                 # JSON 校验；文本/OCR 暂缓
 ```
 
-当前 `pages/Index.ets` 仍负责页面状态、Preferences 和导入确认流程；`components/CalendarComponent.ets`、`HistoryComponent.ets`、`ActionMenuComponent.ets` 与 `WelcomeComponent.ets` 已在单列布局中替换原有内联视图。组件只通过 `@Prop` 和回调接收状态，不直接读写 Preferences；导入解析也不直接修改状态，必须经过预览确认动作。
+当前 `pages/Index.ets` 负责页面状态、Preferences 和导入流程编排；`components/CalendarComponent.ets`、`HistoryComponent.ets`、`ActionMenuComponent.ets`、`WelcomeComponent.ets`、`LoadingComponent.ets`、`AboutComponent.ets`、`TextImportComponent.ets` 与 `ImportConfirmationComponent.ets` 已替换原有内联视图。组件只通过带默认值的 `@Prop` 和回调接收状态，不直接读写 Preferences；导入解析也不直接修改状态，必须经过预览确认动作。
 
 ## 2.1 响应式布局与组件边界
 
