@@ -19,13 +19,13 @@
 entry/src/main/ets/
 ├── entryability/          # UIAbility 生命周期与窗口入口
 ├── pages/                  # 页面级容器，负责组装两个展示页
-├── components/             # Calendar, History, ActionMenu, Welcome, Loading, About, Import
+├── components/             # ResponsivePageShell, Calendar, History, ActionMenu, Welcome, Loading, About, Import
 ├── domain/                 # 日期、经期分组、统计与预测的纯业务逻辑
 ├── data/                   # PreferencesStore、导入导出 DTO、迁移
 └── parser/                 # JSON 校验；文本/OCR 暂缓
 ```
 
-当前 `pages/Index.ets` 负责页面状态、Preferences 和导入流程编排；`components/CalendarComponent.ets`、`HistoryComponent.ets`、`ActionMenuComponent.ets`、`WelcomeComponent.ets`、`LoadingComponent.ets`、`AboutComponent.ets`、`TextImportComponent.ets` 与 `ImportConfirmationComponent.ets` 已替换原有内联视图。组件只通过带默认值的 `@Prop` 和回调接收状态，不直接读写 Preferences；导入解析也不直接修改状态，必须经过预览确认动作。
+当前 `pages/Index.ets` 负责页面状态、Preferences 和导入流程编排；`components/ResponsivePageShell.ets` 负责窗口模式和页面组合，`CalendarComponent.ets`、`HistoryComponent.ets`、`ActionMenuComponent.ets`、`WelcomeComponent.ets`、`LoadingComponent.ets`、`AboutComponent.ets`、`TextImportComponent.ets` 与 `ImportConfirmationComponent.ets` 负责具体视图。组件只通过带默认值的 `@Prop` 和回调接收状态，不直接读写 Preferences；导入解析也不直接修改状态，必须经过预览确认动作。
 
 ## 2.1 响应式布局与组件边界
 
@@ -58,7 +58,7 @@ Index / PageState
 4. 先在当前 `single` 布局中替换组件并通过截图/交互回归，再实现 `dual`。
 5. 每个组件提供可独立预览的默认属性，避免 DevEco 预览器出现本地初始化属性缺省错误。
 
-窗口尺寸应在页面可见阶段读取；发生窗口旋转、折叠状态变化或避让区变化时更新度量。布局断点使用 `vp` 和容器宽度表达，五个指定画布只作为验收样本，不把像素坐标写死进业务组件。
+窗口尺寸应在页面可见阶段读取；发生窗口旋转、折叠状态变化或避让区变化时更新度量。由于区域回调返回逻辑尺寸，页面壳用宽高比例判定结构性布局，避免把物理像素阈值写死；五个指定画布只作为验收样本，不把像素坐标写进业务组件。
 
 ## 3. 领域模型
 

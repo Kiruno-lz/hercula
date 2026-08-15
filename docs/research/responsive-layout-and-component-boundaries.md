@@ -66,8 +66,8 @@ ArkUI 官方多设备布局资料推荐使用响应式布局和断点来调整�
 
 1. 完成当前核心功能和 JSON schema 严格校验。
 2. 已从 `Index.ets` 抽出 `CalendarComponent`、`HistoryComponent`、`ActionMenuComponent`、`WelcomeComponent`、`LoadingComponent`、`AboutComponent`、`TextImportComponent` 和 `ImportConfirmationComponent`，并在单列页面中完成视觉与交互回归；后续再抽取设计 token。
-3. 抽出 `ResponsivePageShell`，只负责窗口度量、布局模式和手势策略。
-4. 先实现 `single` 与 `compact` 回归，再实现 Pura X 展开横向的 `dual`。
+3. 已抽出 `ResponsivePageShell`，只负责窗口度量、布局模式和手势策略；当前实现用实际窗口宽高选择 `compact`、`single`、`dual`。
+4. `compact` 已接入核心月历并隐藏标题品牌；`single` 保留现有纵向分页；`dual` 使用日历/历史双列，右侧历史保留自身滚动。
 5. 在五个模拟器画布上做截图、交互和窗口切换检查，最后再补充动效。
 
 组件不直接访问 Preferences。页面状态层负责读取和写入，组件只通过 `@Prop`、`@Link` 或明确回调接收数据和发出事件；组件预览必须为本地初始化属性提供默认值，以避免 DevEco 预览器的 `mandatory-default-value-for-local-initialization` 问题。
@@ -85,7 +85,7 @@ ArkUI 官方多设备布局资料推荐使用响应式布局和断点来调整�
 
 当前不需要新增实验代码。按下面的模拟器样本检查即可：
 
-1. 以 `1320×2120` 验证当前 Pura X 展开竖向单列基准。
+1. 以 `1320×2120` 验证当前 Pura X 展开竖向单列基准；区域回调使用逻辑尺寸，因此验收以宽高比例为准。
 2. 以 `2120×1320` 验证 Pura X 展开横向双排：左侧月历、右侧历史；日期点击和导出动作仍有效。
 3. 以 `980×980` 验证紧凑月历，不加载 logo。
 4. 以 `2210×2416`、`1080×2444`、`1320×2856` 验证宽度不足时回退单列、宽度足够时不发生异常拉伸。
