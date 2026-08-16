@@ -1,4 +1,4 @@
-import { addDays, dayDistance, isValidDateKey, parseDateKey, toDateKey } from './DateUtils';
+import { addDays, dayDistance, isValidDateKey, parseDateKey } from './DateUtils';
 
 export interface MenstrualDay {
   date: string;
@@ -15,13 +15,6 @@ export interface PeriodSummary {
 export interface Prediction {
   label: string;
   available: boolean;
-}
-
-export interface CalendarCell {
-  key: string;
-  day: number;
-  date: string;
-  inCurrentMonth: boolean;
 }
 
 export function normalizeDays(days: Array<MenstrualDay>): Array<MenstrualDay> {
@@ -57,24 +50,6 @@ export function derivePeriods(days: Array<MenstrualDay>, today: string): Array<P
     });
   });
   return result;
-}
-
-export function buildCalendarCells(year: number, month: number): Array<CalendarCell> {
-  const firstDay: Date = new Date(year, month, 1);
-  const firstMondayOffset: number = (firstDay.getDay() + 6) % 7;
-  const start: Date = new Date(year, month, 1 - firstMondayOffset);
-  const cells: Array<CalendarCell> = [];
-  for (let index: number = 0; index < 42; index += 1) {
-    const date: Date = new Date(start.getFullYear(), start.getMonth(), start.getDate() + index);
-    const dateKey: string = toDateKey(date);
-    cells.push({
-      key: dateKey,
-      day: date.getDate(),
-      date: dateKey,
-      inCurrentMonth: date.getMonth() === month
-    });
-  }
-  return cells;
 }
 
 export function predictNextPeriod(periods: Array<PeriodSummary>): Prediction {

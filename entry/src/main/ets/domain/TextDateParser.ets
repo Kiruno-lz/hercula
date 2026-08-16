@@ -1,10 +1,5 @@
 import { isValidDateKey, pad2 } from './DateUtils';
-
-export interface TextDateParseResult {
-  dates: Array<string>;
-  invalidTokens: Array<string>;
-  duplicateDates: Array<string>;
-}
+import { DateCandidateResult } from './ImportTypes';
 
 const DATE_EXPRESSION: RegExp =
   /(\d{4}|\d{2})([-/.])(\d{1,2})([-/.])(\d{1,2})|(\d{4})年(\d{1,2})月(\d{1,2})日|(\d{2})年(\d{1,2})月(\d{1,2})日|(\d{1,2})([-/.])(\d{1,2})|(\d{1,2})月(\d{1,2})日/g;
@@ -103,7 +98,7 @@ function parseToken(token: string, dates: Array<string>, invalidTokens: Array<st
   }
 }
 
-export function parseTextDates(input: string, currentYear: number = new Date().getFullYear()): TextDateParseResult {
+export function parseTextDates(input: string, currentYear: number = new Date().getFullYear()): DateCandidateResult {
   const dates: Array<string> = [];
   const invalidTokens: Array<string> = [];
   const duplicateDates: Array<string> = [];

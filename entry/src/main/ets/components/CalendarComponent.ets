@@ -373,7 +373,6 @@ export struct CalendarComponent {
       .width('100%')
       .height(this.layoutMetrics.calendarDateRowHeightVp)
     }
-    .visibility(this.isCalendarDayVisible(offset, day) ? Visibility.Visible : Visibility.Hidden)
     .onClick((): void => {
       const date: string = this.calendarDayKey(offset, day);
       if (!this.isFutureDate(date)) {
@@ -410,10 +409,6 @@ export struct CalendarComponent {
 
   private calendarDayKey(offset: number, day: number): string {
     return this.calendarDateKey(this.calendarDateForOffset(offset), day);
-  }
-
-  private isCalendarDayVisible(offset: number, day: number): boolean {
-    return day <= this.monthDayCount(this.calendarDateForOffset(offset));
   }
 
   private yearOptions(): Array<number> {

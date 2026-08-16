@@ -37,10 +37,6 @@ export function isValidDateKey(value: string): boolean {
     date.getDate() === Number(match[3]);
 }
 
-export function monthTitle(date: Date): string {
-  return `${date.getFullYear()}年${date.getMonth() + 1}月`;
-}
-
 export function formatShortDate(value: string): string {
   const parts: Array<string> = value.split('-');
   return `${Number(parts[1])}月${Number(parts[2])}日`;

@@ -18,7 +18,6 @@ export struct ResponsivePageShell {
   @Prop safeAreaTopInset: number = 0;
   @Prop safeAreaBottomInset: number = 0;
   @Prop densityPixels: number = 1;
-  @Prop showLayoutModeDebug: boolean = false;
   onToggleDate: (date: string) => void = (_date: string): void => {};
   onImport: () => void = (): void => {};
   onExport: () => void = (): void => {};
@@ -40,16 +39,6 @@ export struct ResponsivePageShell {
         this.buildScrollActionMenu(this.layoutMetrics());
       }
 
-      if (this.showLayoutModeDebug) {
-        Text(`${this.layoutMetrics().mode} ${this.viewportWidth}×${this.viewportHeight}`)
-          .fontSize(13)
-          .fontColor('#FFFFFF')
-          .backgroundColor('#9C526B')
-          .borderRadius(14)
-          .padding({ left: 10, right: 10, top: 6, bottom: 6 })
-          .position({ x: 12, y: 12 })
-          .zIndex(20);
-      }
     }
     .alignContent(Alignment.BottomEnd)
     .width('100%')

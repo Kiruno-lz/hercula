@@ -1,35 +1,31 @@
 import { common } from '@kit.AbilityKit';
 import { fileIo as fs, picker, ReadOptions } from '@kit.CoreFileKit';
 import { buffer } from '@kit.ArkTS';
-import { isValidDateKey } from '../domain/DateUtils';
+import { isValidDateKey, todayKey } from '../domain/DateUtils';
 import { MenstrualDay, normalizeDays } from '../domain/MenstrualData';
-import { todayKey } from '../domain/DateUtils';
+import { DateCandidateResult } from '../domain/ImportTypes';
 
 const SCHEMA_VERSION: number = 1;
 const MAX_IMPORT_BYTES: number = 4 * 1024 * 1024;
 
-export interface HerculaExportFile {
+export type JsonCandidateLoadStatus = 'success' | 'cancelled' | 'read-failed' | 'empty' | 'too-large';
+
+export interface JsonCandidateLoadResult {
+  status: JsonCandidateLoadStatus;
+  candidates: DateCandidateResult | undefined;
+}
+
+type JsonFileReadStatus = 'success' | 'read-failed' | 'empty' | 'too-large';
+
+interface JsonFileReadResult {
+  status: JsonFileReadStatus;
+  text: string | undefined;
+}
+
+interface HerculaExportFile {
   schemaVersion: number;
   exportedAt: string;
   days: Array<MenstrualDay>;
-}
-
-export interface JsonDateCandidateResult {
-  dates: Array<string>;
-  invalidTokens: Array<string>;
-  duplicateDates: Array<string>;
-}
-
-export class JsonImportResult {
-  readonly days: Array<MenstrualDay>;
-  readonly invalidTokens: Array<string>;
-  readonly duplicateDates: Array<string>;
-
-  constructor(days: Array<MenstrualDay>, invalidTokens: Array<string> = [], duplicateDates: Array<string> = []) {
-    this.days = days;
-    this.invalidTokens = invalidTokens;
-    this.duplicateDates = duplicateDates;
-  }
 }
 
 function isObject(value: Object | null): boolean {
@@ -42,7 +38,17 @@ function appendUnique(values: Array<string>, value: string): void {
   }
 }
 
-export function parseJsonDateCandidates(text: string): JsonDateCandidateResult {
+export function classifyJsonFileSize(fileSize: number): JsonFileReadStatus {
+  if (fileSize <= 0) {
+    return 'empty';
+  }
+  if (fileSize > MAX_IMPORT_BYTES) {
+    return 'too-large';
+  }
+  return 'success';
+}
+
+export function parseJsonDateCandidates(text: string): DateCandidateResult {
   let parsed: Object;
   try {
     parsed = JSON.parse(text) as Object;
@@ -95,14 +101,14 @@ export function parseJsonDateCandidates(text: string): JsonDateCandidateResult {
 }
 
 export class JsonTransfer {
-  static async export(context: common.UIAbilityContext, days: Array<MenstrualDay>): Promise<boolean> {
+  static async export(context: common.UIAbilityContext, days: Array<MenstrualDay>): Promise<void> {
     const saveOptions = new picker.DocumentSaveOptions();
     saveOptions.newFileNames = [`hercula-${todayKey()}.json`];
     saveOptions.fileSuffixChoices = ['JSON|.json'];
     const pickerInstance = new picker.DocumentViewPicker(context);
     const uris: Array<string> = await pickerInstance.save(saveOptions);
     if (uris.length === 0) {
-      return false;
+      return;
     }
 
     const payload: HerculaExportFile = {
@@ -114,69 +120,53 @@ export class JsonTransfer {
     try {
       file = fs.openSync(uris[0], fs.OpenMode.READ_WRITE);
       fs.writeSync(file.fd, JSON.stringify(payload));
-      return true;
     } catch (_error) {
-      return false;
     } finally {
       if (file !== undefined) {
         try {
           fs.closeSync(file);
-        } catch (_closeError) {
-          // The write result has already been determined; ignore close errors.
-        }
+        } catch (_closeError) {}
       }
     }
   }
 
-  static async import(context: common.UIAbilityContext): Promise<JsonImportResult | undefined> {
-    const candidates: JsonDateCandidateResult | undefined = await JsonTransfer.selectDateCandidates(context);
-    if (candidates === undefined) {
-      return undefined;
-    }
-    const importedDays: Array<MenstrualDay> = candidates.dates.map((date: string): MenstrualDay => {
-      return { date: date, source: 'import' };
-    });
-    return new JsonImportResult(normalizeDays(importedDays), candidates.invalidTokens, candidates.duplicateDates);
-  }
-
-  static async selectDateCandidates(context: common.UIAbilityContext): Promise<JsonDateCandidateResult | undefined> {
+  static async selectDateCandidates(context: common.UIAbilityContext): Promise<JsonCandidateLoadResult> {
     const selectOptions = new picker.DocumentSelectOptions();
     selectOptions.maxSelectNumber = 1;
     selectOptions.fileSuffixFilters = ['.json'];
     const pickerInstance = new picker.DocumentViewPicker(context);
     const uris: Array<string> = await pickerInstance.select(selectOptions);
     if (uris.length === 0) {
-      return undefined;
+      return { status: 'cancelled', candidates: undefined };
     }
 
-    const text: string | undefined = JsonTransfer.readText(uris[0]);
-    if (text === undefined) {
-      return undefined;
+    const fileResult: JsonFileReadResult = JsonTransfer.readText(uris[0]);
+    if (fileResult.status !== 'success' || fileResult.text === undefined) {
+      return { status: fileResult.status, candidates: undefined };
     }
-    return parseJsonDateCandidates(text);
+    return { status: 'success', candidates: parseJsonDateCandidates(fileResult.text) };
   }
 
-  private static readText(uri: string): string | undefined {
+  private static readText(uri: string): JsonFileReadResult {
     let file: fs.File | undefined = undefined;
     try {
       file = fs.openSync(uri, fs.OpenMode.READ_ONLY);
       const fileSize: number = fs.statSync(file.fd).size;
-      if (fileSize <= 0 || fileSize > MAX_IMPORT_BYTES) {
-        return undefined;
+      const sizeStatus: JsonFileReadStatus = classifyJsonFileSize(fileSize);
+      if (sizeStatus !== 'success') {
+        return { status: sizeStatus, text: undefined };
       }
       const arrayBuffer = new ArrayBuffer(fileSize);
       const options: ReadOptions = { offset: 0, length: fileSize };
       const readLength: number = fs.readSync(file.fd, arrayBuffer, options);
-      return buffer.from(arrayBuffer, 0, readLength).toString('utf-8');
+      return { status: 'success', text: buffer.from(arrayBuffer, 0, readLength).toString('utf-8') };
     } catch (_error) {
-      return undefined;
+      return { status: 'read-failed', text: undefined };
     } finally {
       if (file !== undefined) {
         try {
           fs.closeSync(file);
-        } catch (_closeError) {
-          // There is no usable text result to recover from a close failure.
-        }
+        } catch (_closeError) {}
       }
     }
   }
