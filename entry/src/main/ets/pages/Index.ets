@@ -1,5 +1,5 @@
 import { common } from '@kit.AbilityKit';
-import { window } from '@kit.ArkUI';
+import { display, window } from '@kit.ArkUI';
 import { PreferencesStore } from '../data/PreferencesStore';
 import { JsonDateCandidateResult, JsonTransfer } from '../data/JsonTransfer';
 import { MenstrualDay } from '../domain/MenstrualData';
@@ -23,6 +23,8 @@ const SHOW_LAYOUT_MODE_DEBUG: boolean = false;
 @Component
 struct Index {
   @State private markedDays: Array<MenstrualDay> = [];
+  // Swiper 会缓存离屏页面；每次记录变化都递增，通知历史页重建其派生列表。
+  @State private dataRevision: number = 0;
   @State private feedback: string = '';
   @State private welcomeDialogOpen: boolean = false;
   @State private aboutDialogOpen: boolean = false;
@@ -42,6 +44,9 @@ struct Index {
   @State private isLoading: boolean = true;
   @State private windowWidth: number = 1320;
   @State private windowHeight: number = 2120;
+  @State private safeAreaTopInset: number = 0;
+  @State private safeAreaBottomInset: number = 0;
+  @State private densityPixels: number = 1;
   private store: PreferencesStore | undefined = undefined;
   private appWindow: window.Window | undefined = undefined;
   private appliedOrientation: window.Orientation | undefined = undefined;
@@ -52,6 +57,12 @@ struct Index {
   private readonly onWindowRectChange: (options: window.RectChangeOptions) => void =
     (options: window.RectChangeOptions): void => {
       this.updateWindowSize(options.rect.width, options.rect.height);
+    };
+  private readonly onAvoidAreaChange: (options: window.AvoidAreaOptions) => void =
+    (options: window.AvoidAreaOptions): void => {
+      if (options.type === window.AvoidAreaType.TYPE_SYSTEM) {
+        this.updateSafeArea(options.area);
+      }
     };
 
   aboutToAppear(): void {
@@ -84,8 +95,17 @@ struct Index {
         this.appWindow = currentWindow;
         this.appWindow.on('windowSizeChange', this.onWindowSizeChange);
         this.appWindow.on('windowRectChange', this.onWindowRectChange);
+        this.appWindow.on('avoidAreaChange', this.onAvoidAreaChange);
       }
-      const rect: window.Rect = currentWindow.getWindowProperties().windowRect;
+      const windowProperties: window.WindowProperties = currentWindow.getWindowProperties();
+      const rect: window.Rect = windowProperties.windowRect;
+      if (windowProperties.displayId !== undefined) {
+        const currentDisplay: display.Display = display.getDisplayByIdSync(windowProperties.displayId);
+        this.updateDisplayDensity(currentDisplay.densityPixels);
+      }
+      const systemAvoidArea: window.AvoidArea =
+        currentWindow.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM);
+      this.updateSafeArea(systemAvoidArea);
       this.updateWindowSize(rect.width, rect.height);
     } catch (_error) {
       // Previewer may not provide a real application window; keep preview defaults.
@@ -98,6 +118,21 @@ struct Index {
       this.windowWidth = width;
       this.windowHeight = height;
       this.applyOrientationPolicy(width, height);
+    }
+  }
+
+  private updateSafeArea(area: window.AvoidArea): void {
+    const topInset: number = Math.max(0, area.topRect.height);
+    const bottomInset: number = Math.max(0, area.bottomRect.height);
+    if (topInset !== this.safeAreaTopInset || bottomInset !== this.safeAreaBottomInset) {
+      this.safeAreaTopInset = topInset;
+      this.safeAreaBottomInset = bottomInset;
+    }
+  }
+
+  private updateDisplayDensity(density: number): void {
+    if (density > 0 && density !== this.densityPixels) {
+      this.densityPixels = density;
     }
   }
 
@@ -157,6 +192,7 @@ struct Index {
       this.markedDays = this.markedDays.concat([{ date: date, source: 'manual' }]);
       this.feedback = `${formatShortDate(date)} 已记录`;
     }
+    this.dataRevision += 1;
     await this.persistDays();
   }
 
@@ -189,7 +225,6 @@ struct Index {
       }
       const result: JsonDateCandidateResult | undefined = await JsonTransfer.selectDateCandidates(context);
       if (result === undefined) {
-        this.textImportNotice = '未选择文件，当前输入内容未改变';
         return;
       }
       this.textImportInput = result.dates.join('\n');
@@ -250,6 +285,7 @@ struct Index {
       return;
     }
     this.markedDays = this.markedDays.concat(days);
+    this.dataRevision += 1;
     await this.persistDays();
     this.importConfirmationOpen = false;
     this.closeTextImportDialog();
@@ -264,8 +300,12 @@ struct Index {
       } else {
         ResponsivePageShell({
           markedDays: this.markedDays,
+          dataRevision: this.dataRevision,
           viewportWidth: this.windowWidth,
           viewportHeight: this.windowHeight,
+          safeAreaTopInset: this.safeAreaTopInset,
+          safeAreaBottomInset: this.safeAreaBottomInset,
+          densityPixels: this.densityPixels,
           showLayoutModeDebug: SHOW_LAYOUT_MODE_DEBUG,
           onToggleDate: (date: string): void => {
             this.toggleDate(date);
@@ -360,6 +400,11 @@ struct Index {
     }
     try {
       targetWindow.off('windowRectChange', this.onWindowRectChange);
+    } catch (_error) {
+      // The window may already be disposed during a page transition.
+    }
+    try {
+      targetWindow.off('avoidAreaChange', this.onAvoidAreaChange);
     } catch (_error) {
       // The window may already be disposed during a page transition.
     }

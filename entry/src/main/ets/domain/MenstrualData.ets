@@ -38,18 +38,19 @@ export function normalizeDays(days: Array<MenstrualDay>): Array<MenstrualDay> {
 }
 
 export function derivePeriods(days: Array<MenstrualDay>, today: string): Array<PeriodSummary> {
-  const normalized: Array<MenstrualDay> = normalizeDays(days)
-    .filter((item: MenstrualDay): boolean => item.date <= today);
+  const normalizedDates: Array<string> = normalizeDays(days)
+    .map((item: MenstrualDay): string => item.date)
+    .filter((date: string): boolean => date <= today);
   const result: Array<PeriodSummary> = [];
-  normalized.forEach((item: MenstrualDay, index: number) => {
-    const next: MenstrualDay | undefined = normalized[index + 1];
-    const ongoing: boolean = next === undefined;
-    const endDate: string = ongoing ? today : addDays(next.date, -1);
+  normalizedDates.forEach((startDate: string, index: number) => {
+    const nextDate: string | undefined = normalizedDates[index + 1];
+    const ongoing: boolean = nextDate === undefined;
+    const endDate: string = ongoing ? today : addDays(nextDate, -1);
     const durationDays: number = ongoing
-      ? dayDistance(item.date, today) + 1
-      : dayDistance(item.date, next.date);
+      ? dayDistance(startDate, today)
+      : dayDistance(startDate, nextDate);
     result.push({
-      startDate: item.date,
+      startDate: startDate,
       endDate: endDate,
       durationDays: Math.max(1, durationDays),
       ongoing: ongoing

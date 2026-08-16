@@ -1,16 +1,19 @@
 import { MenstrualDay } from '../domain/MenstrualData';
 import { todayKey } from '../domain/DateUtils';
+import { resolveRuntimeLayoutMetrics, RuntimeLayoutMetrics } from '../domain/ResponsiveLayout';
 
 const PINK_BACKGROUND: string = '#F8F2F3';
 const PERIOD_COLOR: string = '#C98291';
 const ACCENT_COLOR: string = '#A95E70';
 const TEXT_COLOR: string = '#594B50';
+const DEFAULT_LAYOUT_METRICS: RuntimeLayoutMetrics = resolveRuntimeLayoutMetrics(1320, 2120);
 
 @Component
 export struct CalendarComponent {
   @Prop markedDays: Array<MenstrualDay> = [];
   @Prop compact: boolean = false;
   @Prop scrollLayout: boolean = false;
+  @Prop layoutMetrics: RuntimeLayoutMetrics = DEFAULT_LAYOUT_METRICS;
   onToggleDate: (date: string) => void = (_date: string): void => {};
 
   @State private calendarDate: Date = new Date();
@@ -92,6 +95,13 @@ export struct CalendarComponent {
     this.calendarRenderVersion += 1;
   }
 
+  private formatYearLabel(year: number): string {
+    if (this.layoutMetrics.viewportWidth < 1200) {
+      return `${String(year).slice(-2)}年`;
+    }
+    return `${year}`;
+  }
+
   @Builder
   private buildCalendarPage() {
     Column() {
@@ -99,28 +109,28 @@ export struct CalendarComponent {
         Row() {
           Column({ space: 2 }) {
             Text('月迹')
-              .fontSize(68)
+              .fontSize(this.layoutMetrics.calendarTitleFontSizeVp)
               .fontWeight(FontWeight.Bold)
               .fontColor(TEXT_COLOR)
             Text('hercula')
-              .fontSize(24)
+              .fontSize(this.layoutMetrics.calendarSubtitleFontSizeVp)
               .fontColor(ACCENT_COLOR)
               .letterSpacing(2)
           }
           Blank()
         }
-        .width('85%')
+        .width(`${this.layoutMetrics.calendarContentWidthRatio * 100}%`)
       }
 
-      Column({ space: 6 }) {
-        Row({ space: 8 }) {
-          Button(`${this.calendarDate.getFullYear()}年`)
+      Column({ space: this.layoutMetrics.calendarSelectorVerticalGapVp }) {
+        Row({ space: this.layoutMetrics.calendarSelectorHorizontalGapVp }) {
+          Button(this.formatYearLabel(this.calendarDate.getFullYear()))
             .fontSize(16)
             .fontColor(TEXT_COLOR)
             .backgroundColor('#FFF9F9')
             .borderRadius(18)
-            .height(38)
-            .width(74)
+            .height(this.layoutMetrics.calendarSelectorHeightVp)
+            .width(this.layoutMetrics.calendarYearButtonWidthVp)
             .padding(0)
             .onClick((): void => this.toggleJumpMode('year'))
           Button(`${this.calendarDate.getMonth() + 1}月`)
@@ -128,8 +138,8 @@ export struct CalendarComponent {
             .fontColor(TEXT_COLOR)
             .backgroundColor('#FFF9F9')
             .borderRadius(18)
-            .height(38)
-            .width(52)
+            .height(this.layoutMetrics.calendarSelectorHeightVp)
+            .width(this.layoutMetrics.calendarMonthButtonWidthVp)
             .padding(0)
             .onClick((): void => this.toggleJumpMode('month'))
           Blank()
@@ -146,7 +156,7 @@ export struct CalendarComponent {
             .position({ x: 0, y: 0 })
             .zIndex(2)
             .width('100%')
-            .height(183)
+            .height(this.layoutMetrics.calendarJumpPanelHeightVp)
             .backgroundColor('#E8FFF9FA')
             .backgroundBlurStyle(BlurStyle.Thin, { scale: 0.1 })
             .backgroundEffect({ radius: 28, saturation: 1.06, brightness: 1.04 })
@@ -158,18 +168,23 @@ export struct CalendarComponent {
               .animation({ duration: 240, curve: Curve.EaseOut }))
           }
         }
-        .height(360)
-        .width('92%')
+        .height(this.layoutMetrics.calendarGridHeightVp)
+        .width(`${this.layoutMetrics.calendarGridWidthRatio * 100}%`)
       }
-      .padding({ left: 0, right: 0, top: '4%', bottom: 0 })
-      .width('85%')
+      .padding({
+        left: 0,
+        right: 0,
+        top: `${this.layoutMetrics.calendarInnerTopInsetRatio * 100}%`,
+        bottom: 0
+      })
+      .width(`${this.layoutMetrics.calendarContentWidthRatio * 100}%`)
       .constraintSize({ maxWidth: 720 })
     }
     .padding({
-      left: 20,
-      right: 20,
-      top: this.compact ? '3%' : (this.scrollLayout ? '6%' : '25%'),
-      bottom: '2%'
+      left: this.layoutMetrics.calendarHorizontalPaddingVp,
+      right: this.layoutMetrics.calendarHorizontalPaddingVp,
+      top: this.layoutMetrics.calendarTopInsetVp,
+      bottom: this.layoutMetrics.calendarBottomInsetVp
     })
     .justifyContent(FlexAlign.Start)
     .alignItems(HorizontalAlign.Center)
@@ -189,13 +204,13 @@ export struct CalendarComponent {
         ForEach(this.yearOptions(), (year: number) => {
           GridItem() {
             Row() {
-              Button(`${year}`)
+              Button(this.formatYearLabel(year))
                 .fontSize(13)
                 .fontColor(year === this.calendarDate.getFullYear() ? ACCENT_COLOR : TEXT_COLOR)
                 .backgroundColor(year === this.calendarDate.getFullYear() ? '#E9C9D0' : '#FFF9F9')
                 .borderRadius(14)
                 .height(28)
-                .width('60%')
+                .width('100%')
                 .padding(0)
                 .onClick((): void => this.selectYear(year))
             }
@@ -208,9 +223,9 @@ export struct CalendarComponent {
       .columnsTemplate('1fr 1fr 1fr 1fr')
       .rowsTemplate('1fr 1fr 1fr')
       .rowsGap(8)
-      .columnsGap(4)
+      .columnsGap(2)
       .padding({ left: 18, right: 18, top: 10, bottom: 10 })
-      .height(183)
+      .height(this.layoutMetrics.calendarJumpPanelHeightVp)
       .width('100%')
     } else if (this.jumpMode === 'month') {
       Grid() {
@@ -223,7 +238,7 @@ export struct CalendarComponent {
                 .backgroundColor(month === this.calendarDate.getMonth() + 1 ? '#E9C9D0' : '#FFF9F9')
                 .borderRadius(14)
                 .height(26)
-                .width('60%')
+                .width('100%')
                 .padding(0)
                 .onClick((): void => this.selectMonth(month - 1))
             }
@@ -236,9 +251,9 @@ export struct CalendarComponent {
       .columnsTemplate('1fr 1fr 1fr 1fr')
       .rowsTemplate('1fr 1fr 1fr')
       .rowsGap(8)
-      .columnsGap(4)
+      .columnsGap(2)
       .padding({ left: 18, right: 18, top: 10, bottom: 10 })
-      .height(183)
+      .height(this.layoutMetrics.calendarJumpPanelHeightVp)
       .width('100%')
     }
   }
@@ -254,7 +269,7 @@ export struct CalendarComponent {
     }
     .clip(true)
     .width('100%')
-    .height(360)
+    .height(this.layoutMetrics.calendarGridHeightVp)
     .onAreaChange((_oldValue: Area, newValue: Area): void => {
       this.calendarViewportWidth = newValue.width as number;
     })
@@ -273,7 +288,7 @@ export struct CalendarComponent {
       this.buildCalendarMonthCardA(1)
     }
     .width('100%')
-    .height(360)
+    .height(this.layoutMetrics.calendarGridHeightVp)
   }
 
   @Builder
@@ -284,7 +299,7 @@ export struct CalendarComponent {
       this.buildCalendarMonthCardB(1)
     }
     .width('100%')
-    .height(360)
+    .height(this.layoutMetrics.calendarGridHeightVp)
   }
 
   @Builder
@@ -293,8 +308,8 @@ export struct CalendarComponent {
       this.buildCalendarMonthA(offset)
     }
     .width('100%')
-    .height(360)
-    .margin({ top: '1.67%' })
+    .height(this.layoutMetrics.calendarGridHeightVp)
+    .margin({ top: `${this.layoutMetrics.calendarMonthCardTopInsetRatio * 100}%` })
     .translate({ x: offset * this.calendarViewportWidth + this.calendarDragOffset })
     .animation({ duration: this.calendarAnimationDuration, curve: Curve.EaseOut })
   }
@@ -305,8 +320,8 @@ export struct CalendarComponent {
       this.buildCalendarMonthB(offset)
     }
     .width('100%')
-    .height(360)
-    .margin({ top: '1.67%' })
+    .height(this.layoutMetrics.calendarGridHeightVp)
+    .margin({ top: `${this.layoutMetrics.calendarMonthCardTopInsetRatio * 100}%` })
     .translate({ x: offset * this.calendarViewportWidth + this.calendarDragOffset })
     .animation({ duration: this.calendarAnimationDuration, curve: Curve.EaseOut })
   }
@@ -319,10 +334,10 @@ export struct CalendarComponent {
       }, (day: number): string => this.calendarDayKey(offset, day))
     }
     .columnsTemplate('1fr 1fr 1fr 1fr 1fr 1fr 1fr')
-    .rowsGap(15)
-    .columnsGap(2)
+    .rowsGap(this.layoutMetrics.calendarGridRowGapVp)
+    .columnsGap(this.layoutMetrics.calendarGridColumnGapVp)
     .width('100%')
-    .height(360)
+    .height(this.layoutMetrics.calendarGridHeightVp)
     .id(`calendar-grid-a-${this.calendarRenderVersion}-${offset}`)
   }
 
@@ -334,10 +349,10 @@ export struct CalendarComponent {
       }, (day: number): string => this.calendarDayKey(offset, day))
     }
     .columnsTemplate('1fr 1fr 1fr 1fr 1fr 1fr 1fr')
-    .rowsGap(15)
-    .columnsGap(2)
+    .rowsGap(this.layoutMetrics.calendarGridRowGapVp)
+    .columnsGap(this.layoutMetrics.calendarGridColumnGapVp)
     .width('100%')
-    .height(360)
+    .height(this.layoutMetrics.calendarGridHeightVp)
     .id(`calendar-grid-b-${this.calendarRenderVersion}-${offset}`)
   }
 
@@ -349,14 +364,14 @@ export struct CalendarComponent {
           .fontSize(15)
           .fontColor(this.dayTextColor(this.calendarDayKey(offset, day)))
           .textAlign(TextAlign.Center)
-          .width(38)
-          .height(38)
+          .width(this.layoutMetrics.calendarDateSizeVp)
+          .height(this.layoutMetrics.calendarDateSizeVp)
           .borderRadius(19)
           .backgroundColor(this.dayColor(this.calendarDayKey(offset, day)))
       }
       .justifyContent(FlexAlign.Center)
       .width('100%')
-      .height(40)
+      .height(this.layoutMetrics.calendarDateRowHeightVp)
     }
     .visibility(this.isCalendarDayVisible(offset, day) ? Visibility.Visible : Visibility.Hidden)
     .onClick((): void => {

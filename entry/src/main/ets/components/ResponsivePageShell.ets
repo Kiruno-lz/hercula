@@ -2,15 +2,22 @@ import { ActionMenuComponent } from './ActionMenuComponent';
 import { MenstrualDay } from '../domain/MenstrualData';
 import { CalendarComponent } from './CalendarComponent';
 import { HistoryComponent } from './HistoryComponent';
-import { classifyLayoutMode, PageLayoutMode } from '../domain/ResponsiveLayout';
+import {
+  resolveRuntimeLayoutMetrics,
+  RuntimeLayoutMetrics
+} from '../domain/ResponsiveLayout';
 
 const PINK_BACKGROUND: string = '#F8F2F3';
 
 @Component
 export struct ResponsivePageShell {
   @Prop markedDays: Array<MenstrualDay> = [];
+  @Prop dataRevision: number = 0;
   @Prop viewportWidth: number = 1320;
   @Prop viewportHeight: number = 2120;
+  @Prop safeAreaTopInset: number = 0;
+  @Prop safeAreaBottomInset: number = 0;
+  @Prop densityPixels: number = 1;
   @Prop showLayoutModeDebug: boolean = false;
   onToggleDate: (date: string) => void = (_date: string): void => {};
   onImport: () => void = (): void => {};
@@ -22,19 +29,19 @@ export struct ResponsivePageShell {
 
   build() {
     Stack() {
-      if (this.layoutMode() === 'compact') {
-        this.buildCompactLayout();
-      } else if (this.layoutMode() === 'single') {
-        this.buildSingleLayout();
-      } else if (this.layoutMode() === 'dual') {
-        this.buildDualLayout();
+      if (this.layoutMetrics().mode === 'compact') {
+        this.buildCompactLayout(this.layoutMetrics());
+      } else if (this.layoutMetrics().mode === 'single') {
+        this.buildSingleLayout(this.layoutMetrics());
+      } else if (this.layoutMetrics().mode === 'dual') {
+        this.buildDualLayout(this.layoutMetrics());
       } else {
-        this.buildScrollLayout();
-        this.buildScrollActionMenu();
+        this.buildScrollLayout(this.layoutMetrics());
+        this.buildScrollActionMenu(this.layoutMetrics());
       }
 
       if (this.showLayoutModeDebug) {
-        Text(`${this.layoutMode()} ${this.viewportWidth}×${this.viewportHeight}`)
+        Text(`${this.layoutMetrics().mode} ${this.viewportWidth}×${this.viewportHeight}`)
           .fontSize(13)
           .fontColor('#FFFFFF')
           .backgroundColor('#9C526B')
@@ -50,32 +57,40 @@ export struct ResponsivePageShell {
     .backgroundColor(PINK_BACKGROUND);
   }
 
-  private layoutMode(): PageLayoutMode {
-    return classifyLayoutMode(this.viewportWidth, this.viewportHeight);
+  private layoutMetrics(): RuntimeLayoutMetrics {
+    return resolveRuntimeLayoutMetrics(
+      this.viewportWidth,
+      this.viewportHeight,
+      this.safeAreaTopInset,
+      this.safeAreaBottomInset,
+      this.densityPixels
+    );
   }
 
   @Builder
-  private buildCompactLayout() {
-    CalendarComponent({
-      markedDays: this.markedDays,
-      compact: true,
-      onToggleDate: this.onToggleDate
-    });
-  }
-
-  @Builder
-  private buildSingleLayout() {
+  private buildCompactLayout(metrics: RuntimeLayoutMetrics) {
     Swiper() {
       CalendarComponent({
         markedDays: this.markedDays,
+        compact: true,
+        layoutMetrics: metrics,
         onToggleDate: this.onToggleDate
       });
-      HistoryComponent({
-        markedDays: this.markedDays,
-        onImport: this.onImport,
-        onExport: this.onExport,
-        onAbout: this.onAbout
-      });
+      Column() {
+        HistoryComponent({
+          markedDays: this.markedDays,
+          refreshToken: this.dataRevision,
+          compactHistory: true,
+          showActionMenu: false,
+          layoutMetrics: metrics,
+          onImport: this.onImport,
+          onExport: this.onExport,
+          onAbout: this.onAbout
+        });
+      }
+      .width('100%')
+      .height('100%')
+      .id(`compact-history-page-${this.dataRevision}`);
     }
     .index(this.currentPage)
     .vertical(true)
@@ -84,17 +99,55 @@ export struct ResponsivePageShell {
       this.currentPage = index;
     })
     .indicator(false)
+    // 历史页依赖 markedDays 的实时派生结果，禁止 Swiper 复用旧的离屏页面。
+    .cachedCount(0)
     .width('100%')
     .height('100%')
     .backgroundColor(PINK_BACKGROUND);
   }
 
   @Builder
-  private buildDualLayout() {
+  private buildSingleLayout(metrics: RuntimeLayoutMetrics) {
+    Swiper() {
+      CalendarComponent({
+        markedDays: this.markedDays,
+        layoutMetrics: metrics,
+        onToggleDate: this.onToggleDate
+      });
+      Column() {
+        HistoryComponent({
+          markedDays: this.markedDays,
+          refreshToken: this.dataRevision,
+          layoutMetrics: metrics,
+          onImport: this.onImport,
+          onExport: this.onExport,
+          onAbout: this.onAbout
+        });
+      }
+      .width('100%')
+      .height('100%')
+      .id(`single-history-page-${this.dataRevision}`);
+    }
+    .index(this.currentPage)
+    .vertical(true)
+    .loop(false)
+    .onChange((index: number): void => {
+      this.currentPage = index;
+    })
+    .indicator(false)
+    .cachedCount(0)
+    .width('100%')
+    .height('100%')
+    .backgroundColor(PINK_BACKGROUND);
+  }
+
+  @Builder
+  private buildDualLayout(metrics: RuntimeLayoutMetrics) {
     Row() {
       Column() {
         CalendarComponent({
           markedDays: this.markedDays,
+          layoutMetrics: metrics,
           onToggleDate: this.onToggleDate
         });
       }
@@ -104,48 +157,64 @@ export struct ResponsivePageShell {
       Column() {
         HistoryComponent({
           markedDays: this.markedDays,
+          refreshToken: this.dataRevision,
+          layoutMetrics: metrics,
           onImport: this.onImport,
           onExport: this.onExport,
           onAbout: this.onAbout
         });
       }
       .layoutWeight(1)
-      .height('100%');
+      .height('100%')
+      .id(`dual-history-panel-${this.dataRevision}`);
     }
     .width('100%')
     .height('100%');
   }
 
   @Builder
-  private buildScrollLayout() {
+  private buildScrollLayout(metrics: RuntimeLayoutMetrics) {
     Scroll() {
-      Column() {
+      Column({ space: metrics.scrollCalendarHistoryGapVp }) {
         CalendarComponent({
           markedDays: this.markedDays,
           scrollLayout: true,
+          layoutMetrics: metrics,
           onToggleDate: this.onToggleDate
         });
-        HistoryComponent({
-          markedDays: this.markedDays,
-          embeddedInScroll: true,
-          showActionMenu: false,
-          onImport: this.onImport,
-          onExport: this.onExport,
-          onAbout: this.onAbout
-        });
+        Column() {
+          HistoryComponent({
+            markedDays: this.markedDays,
+            refreshToken: this.dataRevision,
+            embeddedInScroll: true,
+            showActionMenu: false,
+            layoutMetrics: metrics,
+            onImport: this.onImport,
+            onExport: this.onExport,
+            onAbout: this.onAbout
+          });
+        }
+        .width('100%')
+        .id(`scroll-history-panel-${this.dataRevision}`);
       }
       .width('100%');
     }
     .scrollable(ScrollDirection.Vertical)
+    .onClick((): void => {
+      if (this.scrollActionMenuOpen) {
+        this.scrollActionMenuOpen = false;
+      }
+    })
     .width('100%')
     .height('100%');
   }
 
   @Builder
-  private buildScrollActionMenu() {
+  private buildScrollActionMenu(metrics: RuntimeLayoutMetrics) {
     Row() {
       ActionMenuComponent({
         actionMenuOpen: this.scrollActionMenuOpen,
+        layoutMetrics: metrics,
         onOpenChange: (open: boolean): void => {
           this.scrollActionMenuOpen = open;
         },
@@ -154,9 +223,12 @@ export struct ResponsivePageShell {
         onAbout: this.onAbout
       });
     }
-    .width(184)
-    .height(44)
-    .margin({ right: '1.52%', bottom: '1.52%' })
+    .width(metrics.actionMenuExpandedWidthVp)
+    .height(metrics.actionMenuCollapsedSizeVp)
+    .margin({
+      right: `${metrics.actionMenuRightInsetRatio * 100}%`,
+      bottom: `${metrics.actionMenuBottomInsetRatio * 100}%`
+    })
     .zIndex(5);
   }
 }
