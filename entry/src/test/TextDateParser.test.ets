@@ -1,9 +1,10 @@
 import { describe, it, expect } from '@ohos/hypium';
-import { TextDateParseResult, parseTextDates } from '../main/ets/domain/TextDateParser';
+import { parseTextDates } from '../main/ets/domain/TextDateParser';
+import { DateCandidateResult } from '../main/ets/domain/ImportTypes';
 
 function assertParseResult(input: string, dates: Array<string>, invalidTokens: Array<string>, duplicateDates: Array<string> = [],
   currentYear: number = 2026): void {
-  const result: TextDateParseResult = parseTextDates(input, currentYear);
+  const result: DateCandidateResult = parseTextDates(input, currentYear);
   expect(result.dates).assertDeepEquals(dates);
   expect(result.invalidTokens).assertDeepEquals(invalidTokens);
   expect(result.duplicateDates).assertDeepEquals(duplicateDates);

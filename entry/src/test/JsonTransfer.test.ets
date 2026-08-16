@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@ohos/hypium';
-import { parseJsonDateCandidates } from '../main/ets/data/JsonTransfer';
+import { classifyJsonFileSize, parseJsonDateCandidates } from '../main/ets/data/JsonTransfer';
 
 interface TestJsonDay {
   date: string;
@@ -14,6 +14,12 @@ interface TestJsonPayload {
 
 export default function jsonTransferTest() {
   describe('JsonTransfer', () => {
+    it('classifies file size boundaries before reading', 0, () => {
+      expect(classifyJsonFileSize(0)).assertEqual('empty');
+      expect(classifyJsonFileSize(4 * 1024 * 1024)).assertEqual('success');
+      expect(classifyJsonFileSize(4 * 1024 * 1024 + 1)).assertEqual('too-large');
+    });
+
     it('parses schema v1 dates and reports duplicates', 0, () => {
       const payload: TestJsonPayload = {
         schemaVersion: 1,

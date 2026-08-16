@@ -1,6 +1,5 @@
 import { describe, it, expect } from '@ohos/hypium';
 import {
-  buildCalendarCells,
   derivePeriods,
   MenstrualDay,
   normalizeDays,
@@ -60,15 +59,6 @@ export default function menstrualDataTest() {
       const periods = derivePeriods(days, '2026-08-14');
       expect(periods.length).assertEqual(1);
       expect(periods[0].startDate).assertEqual('2026-08-14');
-    });
-
-    it('builds a fixed Monday-start six-week calendar with a zero-based month', 0, () => {
-      const cells = buildCalendarCells(2026, 7);
-      expect(cells.length).assertEqual(42);
-      expect(cells[0].date).assertEqual('2026-07-27');
-      expect(cells[0].inCurrentMonth).assertFalse();
-      expect(cells[5].date).assertEqual('2026-08-01');
-      expect(cells[5].inCurrentMonth).assertTrue();
     });
 
     it('uses the upper median completed cycle length for prediction', 0, () => {

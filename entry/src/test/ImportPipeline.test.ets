@@ -1,7 +1,6 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { parseJsonDateCandidates } from '../main/ets/data/JsonTransfer';
-import { validateImportDates } from '../main/ets/domain/ImportValidator';
-import { parseTextDates } from '../main/ets/domain/TextDateParser';
+import { createImportedDays, validateTextImport } from '../main/ets/domain/ImportPipeline';
 
 interface TestJsonDay {
   date: string;
@@ -28,13 +27,15 @@ export default function importPipelineTest() {
         ]
       };
       const jsonResult = parseJsonDateCandidates(JSON.stringify(payload));
-      const textResult = parseTextDates(jsonResult.dates.join('\n'), 2026);
-      const result = validateImportDates({
-        dates: textResult.dates,
-        invalidTokens: jsonResult.invalidTokens.concat(textResult.invalidTokens),
-        duplicateDates: jsonResult.duplicateDates.concat(textResult.duplicateDates),
+      const result = validateTextImport({
+        text: jsonResult.dates.join('\n'),
+        jsonIssues: {
+          invalidTokens: jsonResult.invalidTokens,
+          duplicateDates: jsonResult.duplicateDates
+        },
         existingDates: ['2026-08-10'],
-        today: '2026-08-14'
+        today: '2026-08-14',
+        currentYear: 2026
       });
 
       expect(result.candidateDates).assertDeepEquals(['2026-08-10', '2026-08-14', '2026-08-20']);
@@ -45,18 +46,45 @@ export default function importPipelineTest() {
       expect(result.invalidTokens).assertDeepEquals([]);
     });
 
+    it('keeps JSON issues after the user edits the returned text', 0, () => {
+      const result = validateTextImport({
+        text: '2026-08-14',
+        jsonIssues: {
+          invalidTokens: ['2026-02-29'],
+          duplicateDates: ['2026-08-10']
+        },
+        existingDates: [],
+        today: '2026-08-14',
+        currentYear: 2026
+      });
+
+      expect(result.validDates).assertDeepEquals(['2026-08-14']);
+      expect(result.invalidTokens).assertDeepEquals(['2026-02-29']);
+      expect(result.duplicateDates).assertDeepEquals(['2026-08-10']);
+    });
+
+    it('creates imported facts only from confirmed valid dates', 0, () => {
+      expect(createImportedDays(['2026-08-14', '2026-08-15'])).assertDeepEquals([
+        { date: '2026-08-14', source: 'import' },
+        { date: '2026-08-15', source: 'import' }
+      ]);
+    });
+
     it('does not create import candidates from an empty JSON days array', 0, () => {
       const result = parseJsonDateCandidates(JSON.stringify({
         schemaVersion: 1,
         exportedAt: '2026-08-14T00:00:00.000Z',
         days: []
       }));
-      const validation = validateImportDates({
-        dates: result.dates,
-        invalidTokens: result.invalidTokens,
-        duplicateDates: result.duplicateDates,
+      const validation = validateTextImport({
+        text: result.dates.join('\n'),
+        jsonIssues: {
+          invalidTokens: result.invalidTokens,
+          duplicateDates: result.duplicateDates
+        },
         existingDates: [],
-        today: '2026-08-14'
+        today: '2026-08-14',
+        currentYear: 2026
       });
       expect(validation.candidateDates).assertDeepEquals([]);
       expect(validation.validDates).assertDeepEquals([]);

@@ -3,6 +3,7 @@ import textDateParserTest from './TextDateParser.test';
 import importValidatorTest from './ImportValidator.test';
 import importPipelineTest from './ImportPipeline.test';
 import jsonTransferTest from './JsonTransfer.test';
+import preferencesStoreTest from './PreferencesStore.test';
 import responsiveLayoutTest from './ResponsiveLayout.test';
 import menstrualDataTest from './MenstrualData.test';
 
@@ -12,6 +13,7 @@ export default function testsuite() {
   importValidatorTest();
   importPipelineTest();
   jsonTransferTest();
+  preferencesStoreTest();
   responsiveLayoutTest();
   menstrualDataTest();
 }
