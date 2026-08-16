@@ -65,16 +65,95 @@ Mate X7 只是设备参考名称，不是运行时模式名称。其展开态可
 | MateBook Pro | 3120×2080 | 1.500 | `dual` | 复用双排，验证窗口缩放 |
 | Pura 90 | 1320×2856 | 0.462 | `scroll` | 日历和历史同页整体滚动 |
 
-## 4. 各模式的组件组合
+## 4. 组件 UI 调整计划
+
+本计划只调整运行时布局表现，不改变日期记录、历史统计、导入导出和预测业务。执行顺序固定，前一项完成并通过基线检查后再进入下一项。
+
+### 4.1 建立运行时布局参数边界
+
+状态：已完成第一版参数边界。
+
+- 由 `domain/ResponsiveLayout.ets` 生成当前窗口对应的 `RuntimeLayoutMetrics`。
+- `ResponsivePageShell` 负责选择运行时并向日历、历史统计和操作菜单传递参数。
+- 页面顶部/底部间距、日历与历史的外部间距、标题字号、日历网格间距、操作菜单尺寸和边缘偏移均归入运行时参数域。
+- 基础组件只消费参数，不自行决定与其他基础组件之间的页面级间距。
+- 第一版参数保留现有视觉基线，避免建立参数边界时引入额外视觉变化。
+
+### 4.2 统一标题顶部间距
+
+状态：已完成。
+
+以 Pura X single（`1320×2120`）的视觉基线计算顶部留白比例：原设计的 `25% × 1320 = 330` 转换为完整窗口高度比例。窗口尺寸和安全区来自像素单位，传入 ArkUI padding 前必须除以当前屏幕 `densityPixels` 转换为 vp；顶部 padding 使用“目标视觉留白减去安全区顶部”的内容区值。single/dual 保留日历固有高度后的底部余量，并设置最低底部留白，避免短窗口压缩到底部或无底部缓冲。compact 保留紧凑顶部策略，scroll 使用同一 Pura X 顶部比例但只保留最低底部留白，以免把日历和历史之间的滚动内容强行撑满。
+
+### 4.3 根据组件宽度缩放标题字号
+
+状态：已完成。
+
+标题字号依据日历实际可用宽度计算，设置 `48–68vp` 的范围，并同步保留副标题的响应式基线；已验证 `dual` 半屏宽度和 `scroll` 窄屏宽度。
+
+### 4.4 修复年月按钮文字压缩
+
+状态：已完成。
+
+年月按钮根据日历区域宽度计算最小可用宽度，按钮填满浮窗网格单元并收紧列间距，保持文字单行完整显示。窗口宽度小于 `1200px` 时，年份显示为 `26年` 形式；已验证 `compact` 与窄列布局。
+
+### 4.5 调整日历内部网格间距
+
+状态：已完成。
+
+日期网格行间距仅在完整窗口高度小于 `1000px` 且运行时为 `compact` 时压缩为 `3vp`；当前值由 `RuntimeLayoutMetrics.calendarGridRowGapVp` 提供，其他运行时保持 `15vp`。scroll 的四个微调入口集中在 `ResponsiveLayout.ets` 的 `mode === 'scroll' ?` 分支及其数值常量：顶部留白使用 `SCROLL_CALENDAR_TOP_INSET_RATIO`，标题左侧留白使用 `SCROLL_CALENDAR_HORIZONTAL_PADDING_VP`，标题与年月选择器的内部顶部留白使用 `SCROLL_CALENDAR_INNER_TOP_INSET_RATIO`，网格行距使用 `SCROLL_CALENDAR_GRID_ROW_GAP_VP`。只需修改这些数值，不要改动组件内部间距。
+
+为避免窄窗口下日期标记圆形被网格列裁切，compact/scroll 使用 `calendarContentWidthRatio = 1`；compact 使用 `calendarGridWidthRatio = 1`，scroll、single、dual 保持 `0.92` 的网格宽度，single/dual 继续保持原有 `0.85` 内容宽度。
+
+### 4.6 修复 scroll 下日历与历史统计的间距
+
+状态：已完成。
+
+scroll 下移除 `CalendarComponent` 底部和 `HistoryComponent` 顶部重复承担的页面级留白，由 `ResponsivePageShell` 的纵向容器通过 `scrollCalendarHistoryGapVp` 统一控制 section gap；当前 scroll 值为 `56vp`。历史组件底部额外留白由 `scrollHistoryBottomInsetVp` 独立控制，当前为 `64vp`，不影响 single、dual、compact。scroll 日历网格高度按 `5 × 40vp + 4 × SCROLL_CALENDAR_GRID_ROW_GAP_VP` 动态计算，当前行距 `3vp` 时为 `212vp`；将行距改回 `15vp` 时高度自动恢复为 `260vp`。single、dual、compact 保持原有日历高度与间距。
+
+### 4.7 统一 ActionMenu 定位与尺寸
+
+状态：已完成。
+
+将折叠尺寸、展开尺寸和右下边缘偏移作为独立运行时参数，定位相对于窗口右边缘和下边缘计算，不再依赖固定的内部 `x/y` 偏移。所有运行时统一使用百分比参数 `actionMenuRightInsetRatio` 和 `actionMenuBottomInsetRatio` 控制边缘留白，当前分别为 `3%` 和 `3%`。
+
+### 4.8 增加空白区域关闭 ActionMenu
+
+状态：已完成。
+
+该问题仅存在于 scroll。scroll 的外层纵向 `Scroll` 负责接收空白区域点击并关闭菜单；ActionMenu 仍作为页面顶层固定层保持可点击。single、dual 的现有关闭行为保持不变，不增加跨运行时的点击拦截。
+
+### 4.9 为 compact 增加简略历史统计页
+
+状态：已完成。
+
+将 compact 改为与 `single` 类似的纵向分页，增加简略历史统计页。该页只渲染日期、跨年小标识、水平柱体、持续时长和短柱偏移；`HistoryComponent` 通过 `compactHistory` 分支复用既有排序、年份标识、动态 scale 和柱体偏移逻辑，不显示标题、预测、导入按钮和 ActionMenu。首条历史记录仅在属于当前年份时省略年份标识；柱体长度低于总长度 `5%` 时使用 `historyShortBarOffsetVp` 偏移。历史列表在组件内部独立纵向滚动，外层 `Swiper` 不被历史数量撑高。
+
+### 4.10 回归验收顺序
+
+每次只验证当前修改项及其交叉影响，至少覆盖：
+
+| 运行时 | 重点检查 |
+| --- | --- |
+| `compact` | 年月按钮、日历行距、上下留白、简略历史页 |
+| `single` | 标题顶部间距、标题字号、纵向分页 |
+| `dual` | 半屏标题字号、顶部间距、历史区独立滚动 |
+| `scroll` | 标题顶部间距、日历与历史间距、固定操作菜单、空白关闭 |
+
+基线尺寸继续使用 `980×980`、`1320×2856`、`2880×1920`、`1920×2880` 和 `2210×2416`。
+
+## 5. 各模式的组件组合
 
 ### `compact`
 
 ```text
 ResponsivePageShell
-└── CalendarComponent(compact: true)
+└── Swiper(vertical)
+    ├── CalendarComponent(compact: true)
+    └── HistoryComponent(compactHistory: true)
 ```
 
-不加载 `HistoryComponent`，日历隐藏标题和品牌，仅保留年月控件、日期网格和日期操作。
+日历页隐藏标题和品牌，仅保留年月控件、日期网格和日期操作；下滑进入简略历史统计页，页内只显示历史水平柱状图及其日期、跨年小标识、持续时长和短柱偏移。
 
 ### `single`
 
@@ -108,9 +187,9 @@ ResponsivePageShell
         └── HistoryComponent(embeddedInScroll: true)
 ```
 
-外层滚动容器占满窗口高度。历史组件在该模式下不再创建内部滚动容器，避免嵌套滚动；日历和历史按纵向内容顺序连续展示。
+外层滚动容器占满窗口高度。历史组件在该模式下不再创建内部滚动容器，避免嵌套滚动；日历和历史按纵向内容顺序连续展示，二者之间的距离由 `scrollCalendarHistoryGapVp` 控制。
 
-## 5. 组件调整影响范围
+## 6. 组件调整影响范围
 
 | 调整目标 | 修改位置 | 会影响 | 不应影响 |
 | --- | --- | --- | --- |
@@ -120,7 +199,7 @@ ResponsivePageShell
 | 柱状图、预测、操作菜单 | `HistoryComponent.ets`、`ActionMenuComponent.ets` | 所有显示历史的模式 | 日历换月逻辑 |
 | 欢迎、导入、关于等窗口 | `Index.ets` 与对应窗口组件 | 所有模式的覆盖层 | 主页面布局判断 |
 
-## 6. 验收矩阵
+## 7. 验收矩阵
 
 每个基线画布至少检查：
 
@@ -131,15 +210,18 @@ ResponsivePageShell
 5. 宽屏是否保持最大内容宽度，窄屏是否没有横向溢出。
 6. 年月浮窗、月份拖动、日期点击和操作菜单是否没有手势冲突。
 
-## 7. 当前实现状态
+## 8. 当前实现状态
 
 - 四种基础模式已经接入 `ResponsivePageShell`，分类纯逻辑集中在 `domain/ResponsiveLayout.ets`，边界测试集中在 `entry/src/test/ResponsiveLayout.test.ets`。
 - `entry/src/main/module.json5` 已声明 `phone`、`tablet`、`2in1`，允许平板和电脑模拟器构建、安装和运行。
 - `Index.ets` 在 `windowSizeChange` 与 `windowRectChange` 中更新完整窗口尺寸；除 `scroll` 外使用自动旋转，`scroll` 使用竖屏方向策略。
+- `RuntimeLayoutMetrics` 已建立并由 `ResponsivePageShell` 传递给基础组件；顶部留白已按 Pura X single 基线和系统安全区计算，后续视觉调整按第 4 节逐项推进。
+- `Index.ets` 通过 `getWindowAvoidArea(TYPE_SYSTEM)` 和 `avoidAreaChange` 获取安全区，模式分类仍使用完整窗口矩形，安全区只参与内容内的视觉避让。
+- `Index.ets` 通过窗口关联的 `displayId` 获取 `densityPixels`，所有基于分辨率的视觉留白先从 px 转换为 vp，避免高密度设备上的 padding 被放大。
 - DevEco 模拟器已验证：MatePad Pro 13 的 `dual 2880×1920 ↔ single 1920×2880`，Pura 90 旋转后保持 `scroll 1320×2856`。
-- 当前仅剩完整九设备基线的截图、滚动和状态保持验收；组件变形与压缩按当前任务范围暂不处理。
+- 当前待处理内容为第 4.9 项，以及完整九设备基线的截图、滚动和状态保持验收；组件变形与压缩按当前任务范围暂不处理。
 
-## 8. 参考资料
+## 9. 参考资料
 
 - [屏幕类型布局场景：断点与多设备界面](https://developer.huawei.com/consumer/cn/doc/best-practices/bpta-multi-device-screen-layout)
 - [如何获取窗口的宽高信息](https://developer.huawei.com/consumer/cn/doc/harmonyos-faqs/faqs-arkui-190)

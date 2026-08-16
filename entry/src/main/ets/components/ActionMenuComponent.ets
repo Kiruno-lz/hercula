@@ -1,12 +1,16 @@
+import { resolveRuntimeLayoutMetrics, RuntimeLayoutMetrics } from '../domain/ResponsiveLayout';
+
 const TEXT_COLOR: string = '#594B50';
 const ACTION_MENU_OPEN_DURATION: number = 160;
 const ACTION_MENU_CLOSE_DURATION: number = 180;
 const ACTION_MENU_TEXT_DURATION: number = 160;
 const ACTION_MENU_TEXT_DELAY: number = 120;
+const DEFAULT_LAYOUT_METRICS: RuntimeLayoutMetrics = resolveRuntimeLayoutMetrics(1320, 2120);
 
 @Component
 export struct ActionMenuComponent {
   @Prop actionMenuOpen: boolean = false;
+  @Prop layoutMetrics: RuntimeLayoutMetrics = DEFAULT_LAYOUT_METRICS;
   onOpenChange: (open: boolean) => void = (_open: boolean): void => {};
   onImport: () => void = (): void => {};
   onExport: () => void = (): void => {};
@@ -17,13 +21,13 @@ export struct ActionMenuComponent {
       Stack() {
         Button() {
           Image($r('app.media.action_menu'))
-            .width(24)
-            .height(24)
+            .width(this.layoutMetrics.actionMenuIconSizeVp)
+            .height(this.layoutMetrics.actionMenuIconSizeVp)
         }
         .backgroundColor('transparent')
         .borderRadius(22)
-        .width(44)
-        .height(44)
+        .width(this.layoutMetrics.actionMenuCollapsedSizeVp)
+        .height(this.layoutMetrics.actionMenuCollapsedSizeVp)
         .padding(0)
         .opacity(this.actionMenuOpen ? 0 : 1)
         .translate({ x: this.actionMenuOpen ? -40 : 0 })
@@ -38,7 +42,7 @@ export struct ActionMenuComponent {
             .fontSize(16)
             .fontColor(TEXT_COLOR)
             .backgroundColor('transparent')
-            .height(40)
+            .height(this.layoutMetrics.actionMenuItemHeightVp)
             .width('100%')
             .padding(0)
             .opacity(this.actionMenuOpen ? 1 : 0)
@@ -61,7 +65,7 @@ export struct ActionMenuComponent {
             .fontSize(16)
             .fontColor(TEXT_COLOR)
             .backgroundColor('transparent')
-            .height(40)
+            .height(this.layoutMetrics.actionMenuItemHeightVp)
             .width('100%')
             .padding(0)
             .opacity(this.actionMenuOpen ? 1 : 0)
@@ -84,7 +88,7 @@ export struct ActionMenuComponent {
             .fontSize(16)
             .fontColor(TEXT_COLOR)
             .backgroundColor('transparent')
-            .height(40)
+            .height(this.layoutMetrics.actionMenuItemHeightVp)
             .width('100%')
             .padding(0)
             .opacity(this.actionMenuOpen ? 1 : 0)
@@ -100,7 +104,12 @@ export struct ActionMenuComponent {
               this.onAbout();
             })
         }
-        .padding({ left: 18, right: 18, top: 16, bottom: 16 })
+        .padding({
+          left: this.layoutMetrics.actionMenuHorizontalPaddingVp,
+          right: this.layoutMetrics.actionMenuHorizontalPaddingVp,
+          top: this.layoutMetrics.actionMenuVerticalPaddingVp,
+          bottom: this.layoutMetrics.actionMenuVerticalPaddingVp
+        })
         .justifyContent(FlexAlign.SpaceBetween)
         .width('100%')
         .height('100%')
@@ -109,9 +118,16 @@ export struct ActionMenuComponent {
         .blur(this.actionMenuOpen ? 0 : 2)
         .enabled(this.actionMenuOpen)
       }
-      .position({ x: this.actionMenuOpen ? 0 : 140, y: this.actionMenuOpen ? -128 : 0 })
-      .width(this.actionMenuOpen ? 184 : 44)
-      .height(this.actionMenuOpen ? 172 : 44)
+      .position({
+        x: this.actionMenuOpen ? 0 : this.layoutMetrics.actionMenuCollapsedAnchorOffsetVp,
+        y: this.actionMenuOpen ? this.layoutMetrics.actionMenuExpandedAnchorOffsetYVp : 0
+      })
+      .width(this.actionMenuOpen
+        ? this.layoutMetrics.actionMenuExpandedWidthVp
+        : this.layoutMetrics.actionMenuCollapsedSizeVp)
+      .height(this.actionMenuOpen
+        ? this.layoutMetrics.actionMenuExpandedHeightVp
+        : this.layoutMetrics.actionMenuCollapsedSizeVp)
       .backgroundColor('#E9FFF9FA')
       .backgroundBlurStyle(BlurStyle.Thin, { scale: 0.1 })
       .backgroundEffect({ radius: 24, saturation: 1.06, brightness: 1.03 })
@@ -126,7 +142,7 @@ export struct ActionMenuComponent {
         curve: this.actionMenuOpen ? Curve.EaseOut : Curve.EaseInOut
       })
     }
-    .width(184)
-    .height(44)
+    .width(this.layoutMetrics.actionMenuExpandedWidthVp)
+    .height(this.layoutMetrics.actionMenuCollapsedSizeVp)
   }
 }

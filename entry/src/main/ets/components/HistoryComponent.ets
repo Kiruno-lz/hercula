@@ -6,17 +6,22 @@ import {
   PeriodSummary,
   predictNextPeriod
 } from '../domain/MenstrualData';
+import { resolveRuntimeLayoutMetrics, RuntimeLayoutMetrics } from '../domain/ResponsiveLayout';
 
 const TEXT_COLOR: string = '#594B50';
 const PERIOD_COLOR: string = '#C98291';
 const ACCENT_COLOR: string = '#A95E70';
 const MUTED_TEXT: string = '#8E7B82';
+const DEFAULT_LAYOUT_METRICS: RuntimeLayoutMetrics = resolveRuntimeLayoutMetrics(1320, 2120);
 
 @Component
 export struct HistoryComponent {
   @Prop markedDays: Array<MenstrualDay> = [];
+  @Prop refreshToken: number = 0;
   @Prop embeddedInScroll: boolean = false;
+  @Prop compactHistory: boolean = false;
   @Prop showActionMenu: boolean = true;
+  @Prop layoutMetrics: RuntimeLayoutMetrics = DEFAULT_LAYOUT_METRICS;
   onImport: () => void = (): void => {};
   onExport: () => void = (): void => {};
   onAbout: () => void = (): void => {};
@@ -25,7 +30,17 @@ export struct HistoryComponent {
 
   build() {
     Stack({ alignContent: Alignment.BottomStart }) {
-      if (this.embeddedInScroll) {
+      if (this.compactHistory) {
+        Scroll() {
+          this.buildCompactHistoryContent()
+        }
+        .width('100%')
+        .height('100%')
+        .nestedScroll({
+          scrollForward: NestedScrollMode.SELF_FIRST,
+          scrollBackward: NestedScrollMode.SELF_FIRST
+        })
+      } else if (this.embeddedInScroll) {
         this.buildHistoryContent()
       } else {
         Scroll() {
@@ -44,13 +59,14 @@ export struct HistoryComponent {
         })
       }
 
-      if (this.showActionMenu) {
+      if (this.showActionMenu && !this.compactHistory) {
         Column() {
           Blank()
             .layoutWeight(1)
           Row() {
             ActionMenuComponent({
               actionMenuOpen: this.actionMenuOpen,
+              layoutMetrics: this.layoutMetrics,
               onOpenChange: (open: boolean): void => {
                 this.actionMenuOpen = open;
               },
@@ -59,9 +75,12 @@ export struct HistoryComponent {
               onAbout: (): void => this.onAbout()
             })
           }
-          .width(184)
-          .height(44)
-          .margin({ right: '1.52%', bottom: '1.52%' })
+          .width(this.layoutMetrics.actionMenuExpandedWidthVp)
+          .height(this.layoutMetrics.actionMenuCollapsedSizeVp)
+          .margin({
+            right: `${this.layoutMetrics.actionMenuRightInsetRatio * 100}%`,
+            bottom: `${this.layoutMetrics.actionMenuBottomInsetRatio * 100}%`
+          })
         }
         .alignItems(HorizontalAlign.End)
         .hitTestBehavior(HitTestMode.Transparent)
@@ -73,11 +92,32 @@ export struct HistoryComponent {
     }
     .width('100%')
     .height(this.embeddedInScroll ? 'auto' : '100%')
+    .id(`history-content-${this.refreshToken}`)
+  }
+
+  @Builder
+  private buildCompactHistoryContent() {
+    Column({ space: this.layoutMetrics.historyPeriodsGapVp }) {
+      if (this.currentPeriods().length === 0) {
+        Blank()
+          .height(200)
+          .width('90%')
+          .border({ width: 3, style: BorderStyle.Dashed, color: '#D8BFC7' })
+          .borderRadius(20)
+      } else {
+        ForEach(this.currentPeriodsDescending(), (period: PeriodSummary) => {
+          this.buildHistoryPeriodItem(period)
+        }, (period: PeriodSummary): string => this.periodRenderKey(period))
+      }
+    }
+    .padding({ left: 20, right: 20, top: 24, bottom: 24 })
+    .alignItems(HorizontalAlign.Center)
+    .width('100%')
   }
 
   @Builder
   private buildHistoryContent() {
-    Column({ space: 16 }) {
+    Column({ space: this.layoutMetrics.historySectionGapVp }) {
       Row() {
         Text('月经历史')
           .fontSize(28)
@@ -88,7 +128,7 @@ export struct HistoryComponent {
       .width('100%')
       .height(44)
 
-      Column({ space: 8 }) {
+      Column({ space: this.layoutMetrics.historyPredictionGapVp }) {
         Text('下一次预计')
           .fontSize(14)
           .fontColor(ACCENT_COLOR)
@@ -119,18 +159,27 @@ export struct HistoryComponent {
             })
         }
         .justifyContent(FlexAlign.Center)
-        .height(220)
-        .width('100%')
+        .height(200)
+        .width('90%')
+        .border({ width: 3, style: BorderStyle.Dashed, color: '#D8BFC7' })
+        .borderRadius(20)
       } else {
-        Column({ space: 14 }) {
+        Column({ space: this.layoutMetrics.historyPeriodsGapVp }) {
           ForEach(this.currentPeriodsDescending(), (period: PeriodSummary) => {
             this.buildHistoryPeriodItem(period)
-          }, (period: PeriodSummary): string => period.startDate)
+          }, (period: PeriodSummary): string => this.periodRenderKey(period))
         }
         .width('100%')
       }
     }
-    .padding({ left: 20, right: 20, top: '2.12%', bottom: '1.52%' })
+    .padding({
+      left: 20,
+      right: 20,
+      top: `${this.layoutMetrics.historyTopInsetRatio * 100}%`,
+      bottom: this.layoutMetrics.mode === 'scroll'
+        ? this.layoutMetrics.scrollHistoryBottomInsetVp
+        : `${this.layoutMetrics.historyBottomInsetRatio * 100}%`
+    })
     .justifyContent(FlexAlign.Start)
     .alignItems(HorizontalAlign.Center)
     .width('100%')
@@ -194,17 +243,23 @@ export struct HistoryComponent {
   }
 
   private shouldShowYearDivider(period: PeriodSummary): boolean {
-    const periods: Array<PeriodSummary> = this.currentPeriodsDescending();
-    for (let index: number = 1; index < periods.length; index += 1) {
-      if (periods[index].startDate === period.startDate) {
-        return this.periodYear(periods[index - 1]) !== this.periodYear(period);
-      }
+    const descendingPeriods: Array<PeriodSummary> = this.currentPeriodsDescending();
+    const periodIndex: number = descendingPeriods.findIndex((item: PeriodSummary): boolean => {
+      return item.startDate === period.startDate;
+    });
+    if (periodIndex === 0) {
+      return this.periodYear(period) !== todayKey().split('-')[0];
+    }
+    if (periodIndex > 0) {
+      return this.periodYear(descendingPeriods[periodIndex - 1]) !== this.periodYear(period);
     }
     return false;
   }
 
   private periodBarOffset(period: PeriodSummary): number {
-    return period.durationDays <= 2 ? 3 : 0;
+    return this.periodRatio(period) < this.layoutMetrics.historyShortBarThresholdRatio
+      ? this.layoutMetrics.historyShortBarOffsetVp
+      : 0;
   }
 
   private currentPrediction() {
@@ -221,5 +276,9 @@ export struct HistoryComponent {
       maxDuration = Math.max(maxDuration, item.durationDays);
     });
     return maxDuration;
+  }
+
+  private periodRenderKey(period: PeriodSummary): string {
+    return `${period.startDate}-${period.durationDays}-${period.ongoing ? 'ongoing' : 'completed'}`;
   }
 }
