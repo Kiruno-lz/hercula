@@ -57,7 +57,6 @@ Index
 - 读取 `PreferencesStore`；
 - 判断加载是否成功；
 - 结束加载；
-- 显示 `Index.feedback`。
 
 `Index.loadLocalData()` 在 `finally` 中将 `isLoading` 设为 `false`，因此加载组件的存在时间完全由入口状态控制。它不是普通可叠加弹窗，而是主页面的互斥占位分支。
 
@@ -191,11 +190,11 @@ sequenceDiagram
 
 3. **覆盖层外壳在四个文件中重复实现。** 全屏 `Stack`、半透明模糊遮罩、卡片背景、圆角、边框、阴影和进入动画分别写在四个组件内；同时各组件又保留不同的高度、内边距、关闭行为和层级。这里存在明确的重复结构，但不能直接把四个组件合成一个通用业务组件，否则会混淆输入表单、确认列表、欢迎入口和关于展示的职责。
 
-4. **主页面的安全区/运行时度量没有传给覆盖层。** `Index` 获取了安全区和窗口尺寸，但只传给 `ResponsivePageShell`；五个弹层都使用 `100%` 全屏和固定卡片尺寸，不消费 `RuntimeLayoutMetrics`。因此弹层布局与主页面布局使用两套尺寸输入边界。
+4. **主页面的安全区/运行时度量没有传给覆盖层。** `Index` 获取了安全区和窗口尺寸，但只传给 `ResponsivePageShell`；四个覆盖层都使用 `100%` 全屏和固定卡片尺寸，不消费 `RuntimeLayoutMetrics`，而 `LoadingComponent` 是互斥的启动页。因此覆盖层布局与主页面布局使用两套尺寸输入边界。
 
 5. **确认页的行模型与校验结果模型不完全对应。** 确认页只遍历 `candidateDates` 和 `invalidTokens`；`futureDates`、`existingDates`、`duplicateDates` 只用于摘要或反查状态。若某个值只存在于 `duplicateDates` 而不在 `candidateDates` 中，它会计入摘要但不会生成独立预览行。该边界来自组件消费方式，具体重复值如何进入结果属于下一步导入链路分析。
 
-6. **确认动作没有忙状态协议。** `ImportConfirmationComponent` 只有 `onConfirm`，没有 `busy` 或禁用输入的属性；`Index.build()` 中的回调直接调用异步 `confirmImport()` 而不等待。持久化完成前确认页仍保持可交互，重复点击可能再次执行同一批 `validDates` 的内存合并。
+6. **确认动作没有 UI 忙状态协议，但已有编排层防重入。** `ImportConfirmationComponent` 仍只有 `onConfirm`，没有 `busy` 或禁用输入的属性；`Index.build()` 中的回调直接调用异步 `confirmImport()`。`Index.confirmImport()` 现在用非 UI 的进行中标记忽略重叠调用，并在成功、空输入或持久化异常后通过 `finally` 释放标记；确认页的现有视觉和按钮结构不变。
 
 ## 6. 不应误判为死代码的对象
 

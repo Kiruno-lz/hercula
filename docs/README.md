@@ -4,8 +4,9 @@
 
 ## 文档导航
 
+- [架构解析](./architecture/README.md)：当前代码的组件、数据模型、通信和运行流程，是后续重构的基线。
 - [产品与交互设计](./research/product-design.md)：产品边界、页面结构、状态与视觉方向。
-- [响应式布局规范](./research/responsive-layout.md)：多设备基线、窗口模式、折叠/旋转要求与组件影响范围。
+- [响应式布局规范](./_archive/responsive-layout.md)：多设备基线、窗口模式、折叠/旋转要求与组件影响范围。
 - [需求审查归档](./_archive/requirements-review.md)：对原始想法中的歧义、技术误区和范围偏移进行审查。
 - [JSON Schema 规格](./json_SPEC.md)：首版导入导出的数据契约与迁移规则。
 - [导入测试案例](./examples/text-date-import-cases.md)：文本日期、JSON、重复、未来和错误 schema 的可复现案例。
@@ -17,7 +18,7 @@
 
 1. 首版只做单模块应用，记录、统计、预测、JSON 导入导出和基础 UI 组件已经形成可运行闭环；多设备布局由响应式页面壳统一组织。
 2. 数据只保存在应用本地；导入和导出由用户主动通过系统文件选择器完成。
-3. 首版使用 ArkTS + ArkUI + Stage 模型，图表不引入第三方 UI/图表库；响应式页面壳按 [响应式布局规范](./research/responsive-layout.md) 组织四种布局，不为每种设备复制一套页面。
+3. 首版使用 ArkTS + ArkUI + Stage 模型，图表不引入第三方 UI/图表库；响应式页面壳按 [响应式布局规范](./_archive/responsive-layout.md) 组织四种布局，不为每种设备复制一套页面。
 4. 首版导入以 JSON schema 为主，同时补充确定性的简单文本日期解析；文本解析只处理明确的年月日分隔符并先转为 JSON 候选。OCR 导入和小艺/端侧 AI 暂时搁置。
 5. 多设备验证以 DevEco 模拟器为主，真机验证降为发布前补充项或模拟器无法覆盖的专项问题。
 

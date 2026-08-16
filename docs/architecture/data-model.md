@@ -5,7 +5,7 @@
 | 层次 | 类型/状态 | 产生位置 | 是否持久化 | 允许谁修改 |
 | --- | --- | --- | --- | --- |
 | 事实 | `MenstrualDay[]` | 手动记录、确认导入、Preferences 恢复 | 是 | 只有 `Index` |
-| 输入候选 | `TextDateParseResult`、`JsonDateCandidateResult` | 文本/JSON 解析 | 否 | 解析器生成，用户可通过文本框改变输入 |
+| 输入候选 | `DateCandidateResult` | 文本/JSON 解析 | 否 | 解析器生成，用户可通过文本框改变输入 |
 | 校验结果 | `ImportValidationResult` | `ImportValidator` | 否 | `Index` 保存到当前导入会话 |
 | 统计派生 | `PeriodSummary[]`、`Prediction` | `MenstrualData` | 否 | 由事实和 today 重新计算 |
 | 布局/刷新 | `RuntimeLayoutMetrics`、`dataRevision` | 页面壳/Index | 否 | UI 生命周期控制 |
@@ -29,7 +29,7 @@
 
 导入输入
   文本 / JSON 文件
-      ├─ TextDateParseResult 或 JsonDateCandidateResult
+      ├─ DateCandidateResult
       └─ ImportValidationResult
               └─ 用户确认后才转回 MenstrualDay[]
 ```
@@ -99,7 +99,7 @@ interface Prediction {
 2. 以日期为键放入 `Map`，重复日期后出现的条目覆盖前一条的 `source`。
 3. 按日期升序输出。
 
-它不主动过滤未来日期。因此当前代码的“未来日期不可记录”主要由日历点击和导入校验保证；如果本地存储中已经存在未来日期，`derivePeriods` 会在统计时过滤，但日历仍可能依据原始 `markedDays` 显示其标记。这是后续需要用测试明确处理的边界。
+它不主动过滤未来日期。因此当前代码的“未来日期不可记录”主要由日历点击和导入校验保证；如果本地存储中已经存在未来日期，`derivePeriods` 会在统计时过滤，但日历仍可能依据原始 `markedDays` 显示其标记。阶段 0 已用测试固定这一边界。
 
 重复日期以最后出现的条目为准，后出现条目的 `source` 会覆盖前一条；规范化只保证日期键唯一、合法和升序，不保证输入数组的每个元素都具备完整的运行时对象形状。
 
@@ -110,16 +110,15 @@ interface Prediction {
 - `addDays` / `dayDistance`：日期加法和日差计算。
 - `isValidDateKey`：同时验证格式和构造后的年月日一致性，能拒绝非法闰日、月份和日期。
 - `formatShortDate`：用于 UI 的月日短文案。
-- `monthTitle` 当前没有调用方，是未使用导出候选。
 
 `parseDateKey`、`addDays`、`dayDistance` 和 `formatShortDate` 都要求调用方先提供合法日期键；`parseDateKey` 本身会接受 `Date` 的进位结果，不是错误抛出型解析器。生产路径依赖上游的 `isValidDateKey` 或 `normalizeDays` 满足这个前提。
 
 ## 4. 导入模型
 
-### 文本解析结果
+### 候选结果协议
 
 ```ts
-interface TextDateParseResult {
+interface DateCandidateResult {
   dates: string[];
   invalidTokens: string[];
   duplicateDates: string[];
@@ -129,16 +128,6 @@ interface TextDateParseResult {
 `parseTextDates` 支持带分隔符的年月日、中文年月日、两位年份、无年份日期、固定长度紧凑数字日期，并把无法识别但含数字的片段放入 `invalidTokens`。无年份使用传入的当前年份；生产路径默认使用运行时当前年份，测试可注入年份。
 
 解析器只负责语法识别，不判断未来日期、不判断与本地记录冲突，也不写入数据。
-
-### JSON 候选结果
-
-```ts
-interface JsonDateCandidateResult {
-  dates: string[];
-  invalidTokens: string[];
-  duplicateDates: string[];
-}
-```
 
 `parseJsonDateCandidates` 要求：
 
@@ -185,17 +174,19 @@ interface ImportValidationResult {
 | `menstrual-days` | string | `MenstrualDay[]` 的 JSON，读写时经过 `normalizeDays` |
 | `welcome-shown` | boolean | 是否已经展示过首次欢迎弹窗 |
 
-读取失败返回空日期或 `false`；保存失败被吞掉，保留内存状态可继续使用。`open()` 失败时仍返回 `PreferencesStore` 实例，调用方无法区分空数据和存储不可用。当前没有显式迁移版本、删除数据入口或事务级跨键一致性模型。
+`PreferencesStore` 对每次操作返回明确状态：读取返回 `{ status, days/seen }`，写入返回 `{ status }`；`open()` 失败映射为 `unavailable`，读取或解析失败映射为 `failed`，成功路径映射为 `success`。失败时仍提供空日期或 `false` 降级值，`Index` 当前只消费这些降级字段并保持原有页面行为，不显示新增错误。当前没有显式迁移版本、删除数据入口或事务级跨键一致性模型。
 
 本地 `menstrual-days` 只保存 `MenstrualDay[]` JSON，没有 `schemaVersion`。读取时只要 JSON 解析或规范化抛出异常，整个读取结果就回退为空数组；这不是逐条隔离坏数据的恢复策略。
 
 ## 6. JSON 文件契约与文件边界
 
-导出文件的核心形状由 `HerculaExportFile` 表达：`schemaVersion`、`exportedAt`、`days`。导出前调用 `normalizeDays`，文件选择和保存由系统 `DocumentViewPicker` 完成。
+导出文件的核心形状由 `JsonTransfer` 内部的 `HerculaExportFile` 表达：`schemaVersion`、`exportedAt`、`days`。该类型不作为跨模块协议导出；导出前调用 `normalizeDays`，文件选择和保存由系统 `DocumentViewPicker` 完成。
 
-当前导入实际使用 `selectDateCandidates`，先把 JSON 日期回填到文本导入窗口，再走统一的文本继续/确认路径。`JsonTransfer.import` 仍保留一个直接返回 `JsonImportResult` 的替代入口，但当前 `Index` 没有调用它。
+当前导入使用 `selectDateCandidates`，先把 JSON 日期回填到文本导入窗口，再走统一的文本继续/确认路径。文件候选加载不直接创建 `MenstrualDay`，确认阶段由 `createImportedDays` 统一创建导入事实。
 
-`JsonDateCandidateResult` 不保留每条 JSON 日期的 `source`；当前确认落库会把所有新日期统一标记为 `source='import'`。JSON 文件选择取消、读取失败、空文件和超过 4 MiB 都在 `selectDateCandidates` 中返回 `undefined`，页面无法从该返回值区分具体原因。完整导入时序和这些边界见[第七步导入链路解析](./07-import-pipeline.md)。
+`DateCandidateResult` 不保留每条 JSON 日期的 `source`；当前确认落库会把所有新日期统一标记为 `source='import'`。`selectDateCandidates` 返回 `JsonCandidateLoadResult`，用 `status` 区分取消、读取失败、空文件、超大文件和成功；Index 当前只消费成功候选，非成功状态保持静默。完整导入时序和这些边界见[第七步导入链路解析](./07-import-pipeline.md)。
+
+`PreferencesStore` 的 `PreferencesOperationStatus` 和各操作结果类型只在存储模块内部表达降级结果，不是页面或其他数据模块的公共类型；`PreferencesBackend` 仍作为测试注入接口保留。
 
 本地持久化、日期工具、事实规范化、周期派生和预测函数的调用前提见[第八步数据基础层解析](./08-data-foundation.md)。
 

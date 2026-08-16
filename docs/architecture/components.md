@@ -53,7 +53,6 @@ EntryAbility
 
 ### `entryability/EntryAbility.ets`
 
-- `onCreate` 不启动网络、分析 SDK 或其他第三方初始化。
 - `onWindowStageCreate` 调用 `windowStage.loadContent('pages/Index', ...)`，失败时只写错误日志。
 - 它不持有业务数据，也不参与页面之间通信。
 
@@ -64,16 +63,16 @@ EntryAbility
 | 职责 | 主要状态/方法 | 结果 |
 | --- | --- | --- |
 | 数据事实 | `markedDays`、`toggleDate`、`persistDays` | 手动记录和导入结果进入内存并写入本地 |
-| 导入导出 | `openTextImportDialog`、`loadJsonIntoTextImport`、`continueTextImport`、`confirmImport`、`exportJson` | 编排解析、校验、预览、确认和文件操作 |
+| 导入导出 | `openTextImportDialog`、`loadJsonIntoTextImport`、`continueTextImport`、`confirmImport`、`exportJson` | 管理页面状态，调用 ImportPipeline 编排解析/校验/确认转换并处理文件操作 |
 | 弹层状态 | `welcomeDialogOpen`、`textImportDialogOpen`、`importConfirmationOpen`、`aboutDialogOpen` | 条件挂载覆盖层 |
-| 窗口适配 | `refreshWindowMetrics`、窗口事件监听、`applyOrientationPolicy` | 把窗口矩形、安全区和密度传给页面壳 |
+| 窗口适配 | `platform/WindowMetricsController`、`refreshWindowMetrics` | 把窗口矩形、安全区和密度快照传给页面壳 |
 
 应用级状态清单：
 
 - `markedDays`：当前日期事实集合，组件树的唯一业务数据源。
 - `dataRevision`：每次写入后递增，用于改变历史区域的 `id`，规避 `Swiper` 离屏缓存导致的派生列表不重建。
-- `feedback`：记录操作结果和错误文本；当前仅在 `Index` 赋值，没有被任何 UI 组件渲染，是后续清理时的高优先级观察项。
-- `jsonImportIssues`：保存 JSON 解析阶段的问题；其中 `dates` 字段写入后没有消费者，实际继续使用的是 `invalidTokens` 和 `duplicateDates`。
+- `jsonImportIssues`：保存 JSON 解析阶段的 `invalidTokens` 和 `duplicateDates`；候选日期只进入文本框，不在该临时问题状态中重复保存。
+- `jsonCandidateLoaded`：仅标记成功加载且尚未被用户编辑的 JSON 文本，用于让空 JSON 进入现有确认页；打开、关闭、继续或编辑文本时清除。
 - `importValidation`：确认窗口的完整预览模型，包含候选、可导入、未来、重复、已存在和无效内容。
 - 窗口状态：`windowWidth`、`windowHeight`、安全区上下边距、密度；默认值用于预览器或窗口 API 不可用时的渲染。
 
@@ -82,11 +81,11 @@ EntryAbility
 生命周期：
 
 1. `aboutToAppear` 异步调用 `loadLocalData`。
-2. `onPageShow` 调用 `refreshWindowMetrics`，注册窗口尺寸、矩形和系统避让区监听。
-3. `onPageHide` 解绑监听并清空窗口引用。
+2. `onPageShow` 调用 `refreshWindowMetrics`，由 `WindowMetricsController` 注册窗口尺寸、矩形和系统避让区监听。
+3. `onPageHide` 让 `WindowMetricsController` 解绑监听并清空窗口引用。
 4. 本地加载无论成功失败都会在 `finally` 中结束 `isLoading`；失败时保留内存空数据并设置反馈文本。
 
-`PreferencesStore.open()` 即使打开失败也返回实例；`loadDays()` 失败时返回空数组，`hasSeenWelcome()` 失败时返回 `false`，保存方法吞掉异常。因此 `Index` 的生命周期只保证页面继续渲染，不保证本地恢复或保存成功。
+`PreferencesStore.open()` 即使打开失败也返回实例；读取方法返回带 `status` 的结果并附带空数组或 `false` 降级值，保存方法返回 `status`。`Index` 当前只消费读取结果中的数据字段并忽略保存结果，因此生命周期仍只保证页面继续渲染，不保证本地恢复或保存成功；失败区别已经保留在数据层，尚未接入 UI。
 
 ## 3. 页面壳与布局
 
@@ -99,7 +98,6 @@ EntryAbility
 | `markedDays` | 同时传给日历和历史 |
 | `dataRevision` | 作为历史区域的重建 token |
 | `viewportWidth/Height`、`safeAreaTop/BottomInset`、`densityPixels` | 生成运行时布局度量 |
-| `showLayoutModeDebug` | 是否显示模式调试文本 |
 
 回调只有四个：`onToggleDate`、`onImport`、`onExport`、`onAbout`。因此页面壳是纯粹的“布局适配器 + 回调转发器”。
 
@@ -149,7 +147,7 @@ EntryAbility
 - 组件直接读取传入的 `markedDays`，不调用 `normalizeDays`；事实集合的规范化责任在存储边界和 domain 派生函数，不在日历展示层。
 - 视觉尺寸全部从 `RuntimeLayoutMetrics` 读取；组件不知道设备型号。
 
-当前网格实际只生成当月的 1 到最后一天，并直接放入 7 列 Grid，没有加入第一天之前的星期偏移。`MenstrualData.buildCalendarCells` 另有固定 42 格和周一偏移逻辑，两者不是等价实现；当前代码的日历格生成责任尚未统一，不能仅凭无调用方删除后者。详见[第三步解析](./03-calendar-component.md)。
+当前网格实际只生成当月的 1 到最后一天，并直接放入 7 列 Grid，没有加入第一天之前的星期偏移；日历格生成责任已收敛在 `CalendarComponent`，详见[第三步解析](./03-calendar-component.md)。
 
 ### `components/HistoryComponent.ets`
 

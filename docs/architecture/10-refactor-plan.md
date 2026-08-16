@@ -1,6 +1,6 @@
 # 初步重构计划
 
-状态：阶段 0 已建立纯逻辑行为基线；Index、PreferencesStore 和文件系统边界仍保留为后续集成验证项。
+状态：阶段 0 已建立纯逻辑行为基线；阶段 1 已清理确认的独立死代码；阶段 2 已完成事实与存储边界收束；阶段 3 的导入协议已收束；阶段 4 的代码拆分和导入/导出页面复核已完成；阶段 5 已完成展示层边界核对；阶段 6 已完成最终引用、布局和文档收口。
 
 本计划建立在 [第九步入口与全局引用审查](./09-entry-and-global-audit.md) 和三份汇总文档之上：
 
@@ -48,7 +48,7 @@
 - 已补充 `predictNextPeriod` 的完整周期数量不足和偶数间隔上侧中位数测试；
 - 已补充 JSON 候选回填文本、文本继续、问题合并、已有/未来/有效分类的组合测试；
 - 保留四种布局的现有 ResponsiveLayout 测试；
-- PreferencesStore 的打开/读取/保存失败行为尚未建立可执行测试边界，不能用纯函数测试替代；
+- 阶段 0 当时未覆盖 PreferencesStore 的打开/读取/保存失败行为；该边界已在阶段 2 通过可替换 backend 的受控测试补齐；
 - Index 的确认前后 `markedDays`、`dataRevision` 变化尚未直接测试，当前组合测试只验证不写入的校验阶段结果。
 
 完成条件：
@@ -68,7 +68,7 @@
 阶段 0 当前结果：
 
 - 新增 `entry/src/test/DateUtils.test.ets`、`entry/src/test/ImportPipeline.test.ets`，扩展 `entry/src/test/MenstrualData.test.ets` 和 `entry/src/test/List.test.ets`；
-- `DEVECO_SDK_HOME=/Applications/DevEco-Studio.app/Contents/sdk hvigorw test --no-daemon`：48 项通过，0 失败，0 错误；
+- 当前 `DEVECO_SDK_HOME=/Applications/DevEco-Studio.app/Contents/sdk hvigorw test --no-daemon`：56 项通过，0 失败，0 错误；
 - `DEVECO_SDK_HOME=/Applications/DevEco-Studio.app/Contents/sdk hvigorw assembleApp --no-daemon --no-incremental`：构建成功；未配置签名，因此只保留未签名产物；
 - 生产代码、UI 代码、`docs/assrt` 未修改；
 - 不能从本阶段结果推出 PreferencesStore、文件选择器、文件读写、EntryAbility 生命周期或 Index ArkUI 提交路径已经通过测试；这些仍是下一步集成验证的明确边界。
@@ -77,17 +77,18 @@
 
 前置条件：阶段 0 完成，并完成一次全仓引用复核。
 
-候选范围：
+本阶段已处理：
 
-- DateUtils.monthTitle；
-- history_export.svg；
-- 空的 EntryAbility.onCreate 覆盖，只有在确认 HarmonyOS 生命周期默认行为后处理；
+- 删除无生产调用方的 `DateUtils.monthTitle`；
+- 删除无资源引用的 `history_export.svg`；
+
+保留为后续核对项：
+
+- EntryAbility 只保留实际的 WindowStage 页面加载职责，已删除空的 onCreate 覆盖；
 - 与当前文档和资源相关的断链，单独作为文档/资源提交处理，不混入业务重构。
 
 明确不在本阶段删除：
 
-- JsonTransfer.import / JsonImportResult；
-- CalendarCell / buildCalendarCells；
 - dataRevision；
 - 任何弹层遮罩空 onClick；
 - Preview 标记和启动窗口资源。
@@ -97,6 +98,13 @@
 - 全仓搜索不再出现被删除对象的生产引用；
 - 模块构建和现有测试通过；
 - 启动窗口、菜单图标和页面入口资源仍可解析。
+
+阶段 1 当前结果：
+
+- `DateUtils.monthTitle` 已从 `entry/src/main/ets/domain/DateUtils.ets` 删除；
+- `history_export.svg` 已从模块资源目录删除；
+- `EntryAbility.onCreate` 已删除；最新 HAP 在 Pura X 模拟器成功安装并启动，页面入口行为保持不变；
+- `JsonTransfer.import`、`JsonImportResult`、`CalendarCell`、`buildCalendarCells` 均已在阶段 6 清理，并通过全仓引用检查、测试和构建复核。
 
 ### 阶段 2：稳定事实模型和持久化边界
 
@@ -118,17 +126,28 @@
 - Preferences 不可用时页面仍保持当前可渲染行为；
 - 不把统计结果或布局结果写入 MenstrualDay。
 
+阶段 2 当前结果：
+
+- `PreferencesStore` 现在以 `PreferencesBackend` 表达最小读写协议，并由 ArkData 适配器连接真实 `preferences.Preferences`；`fromBackend()` 只作为受控失败测试入口，不引入事件总线或全局单例；
+- `loadDays()`、`hasSeenWelcome()`、`saveDays()`、`markWelcomeShown()` 现在返回明确的 `success`、`unavailable` 或 `failed` 状态；失败时仍返回原有的空数组或 `false` 降级值，Index 只消费降级字段，因此没有新增 UI 文案或页面状态；
+- 在 Pura X 独立 `Emulator` 上完成安装、启动和页面截图验证，启动后恢复已有日期标记且没有重复显示欢迎弹层；
+- 通过“点击未标记的过去日期 14 日 -> 强制停止并重启 -> 确认 14 日仍被标记 -> 再次点击取消 -> 强制停止并重启”的闭环，确认 `Index` 内存更新、`PreferencesStore.saveDays()` 写入/恢复和二次取消后的持久化结果一致；
+- `entry/src/test/PreferencesStore.test.ets` 通过 fake backend 覆盖不可用存储、损坏 JSON、读取失败、`put` 失败、`flush` 失败及欢迎标记读写；真实 ArkData 的成功路径由模拟器验证，操作系统级权限或沙箱故障未在模拟器中强行注入；
+- 暂不增加 `normalizeDays()` 的运行时 `source` 过滤：这会在损坏或旧数据场景静默丢弃日期事实，当前没有迁移或错误反馈边界支持该行为；先保持日期合法性规范化与来源检查分属现有入口的规则。
+
+阶段 2 完成判定：事实模型未改变；Preferences 结果协议已有可执行的成功/不可用/失败边界；模拟器成功路径与受控失败路径均有证据；Index 仍保持原有内存降级和 UI 行为。
+
 ### 阶段 3：统一导入候选协议
 
 目标：减少文本和 JSON 两套相同结果接口，以及 Index 中分散的导入临时状态转换。
 
 工作顺序：
 
-1. 先把 TextDateParseResult 与 JsonDateCandidateResult 的共同结构明确为一个候选问题协议；
+1. 已把文本和 JSON 的共同结构明确为 `DateCandidateResult` 候选问题协议；
 2. 保留 JSON 回填文本、继续时重新解析、用户确认后落库的当前页面路径；
 3. 为 JSON 文件取消、读取失败、空文件和超大文件保留可区分的内部结果，但不擅自改变现有 UI 文案；
 4. 处理 jsonImportIssues 与用户编辑文本之间的当前行为，先用组合测试固定，再决定是否重建问题数组；
-5. 将 JsonTransfer.import / JsonImportResult 与统一候选路径做最终引用判定；如果没有外部调用方，才进入删除或迁移；
+5. 已将未接入的直接 JSON 导入入口删除，页面只保留候选加载和统一确认路径；
 6. 保留 ImportValidator 的 duplicateDates 报告语义，不把重复日期直接改成 validDates 排除条件。
 
 完成条件：
@@ -139,6 +158,15 @@
 - 空 JSON、文件错误和用户取消都有可验证的分支；
 - 确认前不修改 markedDays，确认后只写 validDates。
 
+阶段 3 当前进度：
+
+- 已新增 `entry/src/main/ets/domain/ImportTypes.ets`，由文本解析和 JSON 解析共用 `DateCandidateResult`，Index 只保存 `ImportIssues`；
+- 已通过现有 56 项纯逻辑测试和应用构建，解析结果、确认前不写入和页面结构保持不变；
+- 已将文件选择取消、读取失败、空文件和超大文件表达为 `JsonCandidateLoadResult.status`，但 Index 仍保持非成功结果静默；
+- 已用 `mergeImportIssues()` 和组合测试固定 JSON 问题与用户编辑文本问题继续合并的现有行为；
+- 已为成功加载且未编辑的空 JSON 保留一次性来源标记，使其进入现有确认页显示 0 条结果；手动空文本和用户编辑后的空文本仍直接返回；
+- `JsonTransfer.import()` / `JsonImportResult` 已删除；`JsonTransfer.selectDateCandidates()` 是唯一文件候选入口，确认落库由 `ImportPipeline` 承担。
+
 ### 阶段 4：拆分 Index 的非 UI 编排
 
 前置条件：阶段 2 和阶段 3 的数据协议稳定。
@@ -147,11 +175,11 @@
 
 建议拆分顺序：
 
-1. 先提取无 UI 的导入编排函数：输入文本、JSON 问题、已有日期和 today，返回 ImportValidationResult；
-2. 再提取确认结果到 MenstrualDay[] 的纯转换，保留 source='import'；
-3. 再隔离 Window 获取、监听、避让区和方向策略的适配代码；
+1. 已提取无 UI 的导入编排函数：输入文本、JSON 问题、已有日期和 today，返回 ImportValidationResult；
+2. 已提取确认结果到 MenstrualDay[] 的纯转换，保留 source='import'；
+3. 已隔离 Window 获取、监听、避让区和方向策略的适配代码；
 4. 保留 Index 对弹层布尔值、markedDays、dataRevision 和页面回调的最终所有权；
-5. 只有在状态转换稳定后，才处理 feedback、存储错误结果和异步确认忙状态。
+5. 只有在状态转换稳定后，才处理存储错误结果和异步确认忙状态；无消费者的 `feedback` 状态已删除。
 
 完成条件：
 
@@ -160,6 +188,19 @@
 - dataRevision 仍能触发 Swiper 离屏历史重建；
 - 窗口监听在 onPageHide 后仍然解绑；
 - 拆出的模块不反向访问 UI 状态或使用全局单例。
+
+阶段 4 当前进度：
+
+- `entry/src/main/ets/domain/ImportPipeline.ets` 已承载文本解析、JSON 问题合并、校验分类和确认事实转换；
+- `Index` 仍拥有 `markedDays`、`importValidation`、`dataRevision` 和所有弹层状态，只负责调用纯函数并更新页面状态；
+- Window 获取、监听、避让区和方向策略已迁到 `entry/src/main/ets/platform/WindowMetricsController.ets`；构建和 56 项纯逻辑测试已重新执行。
+- Pura X 模拟器已复核“记录 14 日→重启恢复→再次点击取消→重启确认取消”的持久化闭环，以及 JSON 导出取消、导出到 Download、文件选择器浏览和文件选择器取消。
+- 真实导入路径已复核：有效 JSON 回填 3 个日期，确认页分类为“可导入 3 条”，确认后历史页出现 5 月 9 日、6 月 16 日和 7 月 18 日；重复 JSON 分类为“重复 3 条”，非法 schema 留在文本导入弹层并显示具体错误。
+- `Index.confirmImport()` 已增加非 UI 的异步防重入标记；模拟器连续点击确认按钮后返回历史页，新增日期只出现一条，未改变确认弹层的视觉结构。
+- Pura X 已复核 single（展开态 1320×2120）、compact（折叠态 980×980）和旋转后的 dual（展开态 2120×1320）真实页面；Pura 90 已复核 scroll（1320×2856）页面，确认日历与历史纵向连续、滚动条可见且操作菜单固定在右下角。
+- 阶段 13 在 Pura X 上执行了 HOME 离开后重新启动，以及折叠 `980×980`、展开 `1320×2120` 后的重新启动；阶段 14 又通过 `motion,1` 得到 `2120×1320` 并确认日历与历史左右并列，随后用 `motion,0` 恢复展开态；在 Pura 90 上安装同一 HAP 后确认 `1320×2856` 的 scroll 组合。阶段 15 将 `detach()` 的三个 `off()` 调用改为独立异常隔离，并在 Pura X/Pura 90 上复核 HAP 启动与 HOME 恢复。生命周期与四种窗口均未观察到页面结构回归；系统仍不提供 `Window.off()` 的直接结果或回调计数。
+- 已通过系统文件选择器访问空文件和超过 4 MiB 文件；两者均回到文本导入弹层，`Index` 不写入 `textImportNotice`，没有改变现有页面文案。
+- 仍未完成的系统能力项只有导出写入失败的受控触发；阶段 12/17 已分别证明 `file_manager` 文件不可由 shell 改权限、shell 不能在目标目录创建文件，以及可创建的 `/data/local/tmp` 只读文件不被保存选择器暴露。该路径不能用纯逻辑测试替代，必须继续保留为明确的 E2E 边界。窗口解绑的代码路径已完成独立异常隔离，系统级调用结果因 API 不可观测而单独记录。
 
 ### 阶段 5：整理展示组件的重复承载
 
@@ -181,17 +222,21 @@
 - 不把 LoadingComponent 与普通覆盖层合并；
 - 不把业务动作下沉到展示组件。
 
+阶段 5 当前结果：
+
+- 已核对 `ResponsiveLayout`、`ResponsivePageShell`、`HistoryComponent`、`ActionMenuComponent` 和四个覆盖层的重复结构；
+- 未抽取通用菜单或弹层外壳，因为现有重复结构伴随不同的定位拥有者、点击关闭语义、固定尺寸、zIndex 和动效，参数化后会增加分支而不是减少复杂度；
+- 保留现有展示组件边界，避免为了消除文本重复改变 UI 事件传播和四种布局组合。
+
 ### 阶段 6：最终无用代码与文档收口
 
 前置条件：前五阶段完成，构建、测试和关键 UI 路径复验通过。
 
 处理对象：
 
-- 再次确认 JsonTransfer.import / JsonImportResult；
-- 再次确认 CalendarCell / buildCalendarCells；
 - 确认独立无调用方函数和资源；
-- 修正文档失效链接、缺失图片引用和 parser/ 目录描述；
-- 核对 entry/oh-package.json5 的 main 元数据；
+- 修正文档失效链接、缺失图片引用和过期目录描述；
+- 核对并清理 entry/oh-package.json5 的无效 main 元数据；
 - 更新架构文档中的当前实现快照和剩余边界。
 
 完成条件：
@@ -199,6 +244,17 @@
 - 全仓引用审查与删除清单逐项对应；
 - 不存在“删除后才发现是配置入口/测试入口/资源入口”的对象；
 - 文档只保留当前实现和最终重构后的指导边界，不保留过渡性架构描述。
+
+阶段 6 当前进度：
+
+- 已删除无业务调用方且绕过统一确认链路的 `JsonTransfer.import()` / `JsonImportResult`；
+- `JsonTransfer.import()` / `JsonImportResult`、`CalendarCell` / `buildCalendarCells` 均已删除，当前页面保留唯一实际使用的导入和日历网格路径；
+- 文档导航已统一指向归档的响应式布局文档；缺失的设计图片属于 `docs/assrt/` 范围，不修改；`entry/oh-package.json5` 的无效 `main` 已删除并通过构建和启动复核。
+- 已补充模拟器中的导入/导出页面证据：有效导入、重复分类、非法 schema、文件选择器取消、导出取消和导出成功均已复核；剩余未验证项按具体系统触发条件记录，不用“已覆盖”替代。
+- 已删除固定为 `false` 且没有配置入口的 `SHOW_LAYOUT_MODE_DEBUG` 及其页面壳调试分支；它从未进入正式 UI，不影响现有布局行为。
+- 已删除无读取方的 `Index.feedback` 状态及其赋值、恒为 `Visible` 的 `CalendarComponent.isCalendarDayVisible()`，并将无调用方消费的 `JsonTransfer.export()` 返回值改为 `void`；这些改动不改变页面结构或文件写入路径。
+- 已收窄 `JsonTransfer` 的导出 payload 类型和 `PreferencesStore` 的操作结果类型为模块内部类型，保留 `JsonCandidateLoadResult`、`PreferencesBackend` 等确有跨边界调用的接口。
+- 已删除 `JsonTransfer` 和 `WindowMetricsController` 中只重复代码语义的功能层注释；保留 `ResponsiveLayout`、页面壳和 `Index` 中用于说明 UI 基线与缓存约束的注释。
 
 ## 4. 阶段依赖关系
 

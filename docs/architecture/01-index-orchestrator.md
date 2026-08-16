@@ -51,14 +51,11 @@ components -> 回调动作 Index
 
 这是应用唯一的日期事实源：日历根据它显示标记，历史根据它计算统计，导出根据它生成 JSON，导入确认后把新日期合并回它。日期变化必须经过 toggleDate 或 confirmImport。
 
-### 3.2 刷新与反馈
+### 3.2 刷新信号
 
     @State private dataRevision: number = 0;
-    @State private feedback: string = '';
 
 dataRevision 不是业务数据。每次手动记录或确认导入后递增，再传给页面壳改变历史区域的 id，目的是规避 Swiper 离屏缓存导致的历史列表不重建。
-
-feedback 保存“已记录”“已取消”“导出失败”等文本，但当前只有写入，没有任何 UI 读取或展示。它现在不是有效的用户反馈通道。
 
 ### 3.3 弹层状态
 
@@ -74,6 +71,7 @@ feedback 保存“已记录”“已取消”“导出失败”等文本，但�
     textImportInput       文本框内容
     textImportNotice      JSON 加载提示
     jsonImportIssues      JSON 解析阶段的问题
+    jsonCandidateLoaded   未编辑的成功 JSON 加载标记
     importValidation      确认页的完整分类结果
 
 这些都不是本地事实。取消导入或确认导入后会清理，不应进入 Preferences，也不应出现在导出文件中。
@@ -99,7 +97,7 @@ feedback 保存“已记录”“已取消”“导出失败”等文本，但�
           -> 首次打开：写欢迎标记并打开欢迎弹层
           -> finally：isLoading = false
 
-加载结束前只显示 LoadingComponent。读取失败时保留空内存记录并写入 feedback，但由于反馈没有 UI 消费者，用户当前看不到错误文本。
+加载结束前只显示 LoadingComponent。读取失败时保留空内存记录并结束加载；当前没有页面级错误状态。
 
 当前行为还包括：欢迎标记在弹层打开前就写入。如果应用刚打开欢迎窗口就退出，下次不会再次显示。
 
@@ -107,14 +105,14 @@ feedback 保存“已记录”“已取消”“导出失败”等文本，但�
 
     onPageShow()
       -> refreshWindowMetrics()
-          -> 获取当前 Window
-          -> 窗口变化时解绑旧监听、绑定新监听
-          -> 读取 windowRect
-          -> 读取 display density
-          -> 读取系统避让区
+          -> WindowMetricsController.refresh()
+              -> 获取当前 Window
+              -> 窗口变化时解绑旧监听、绑定新监听
+              -> 读取 windowRect / display density / 系统避让区
+              -> 设置方向策略
           -> 更新 Index 的窗口状态
 
-监听 windowSizeChange、windowRectChange 和 avoidAreaChange。窗口变化只影响布局和方向，不改变日期事实。
+`WindowMetricsController` 监听 windowSizeChange、windowRectChange 和 avoidAreaChange。窗口变化只影响布局和方向，不改变日期事实；Index 只接收快照并更新页面布局状态。
 
 ### 页面隐藏
 
@@ -133,7 +131,7 @@ onPageHide 解绑三个窗口监听，清空窗口引用和方向缓存。每个
 | 点击继续 | continueTextImport | 生成校验结果、切换确认弹层 | 不写 |
 | 返回修改 | closeImportConfirmation | 关闭确认、重新打开文本弹层 | 不写 |
 | 确认导入 | confirmImport | 合并日期、dataRevision、关闭弹层 | 保存日期 |
-| 导出 | exportJson | 更新反馈 | 写用户选择的文件 |
+| 导出 | exportJson | 等待文件操作结束 | 写用户选择的文件 |
 
 ## 6. 两条核心闭环
 
@@ -179,13 +177,12 @@ build() 做的事情很少但很关键：
 
 ## 8. 当前边界问题
 
-这些是观察项，不是本轮修改项：
+这些是当前仍需保留的边界：
 
 1. Index 同时管理事实数据、导入临时状态、窗口资源和弹层，是后续最适合分层的文件。
-2. feedback 没有 UI 消费者，所有反馈文案当前都不会显示。
-3. jsonImportIssues.dates 只被赋值，没有被读取。
-4. PreferencesStore.saveDays 吞掉保存异常，因此 Index 只能确认内存更新，不能确认磁盘写入成功。
-5. JsonTransfer.export 用 false 同时表达“取消”和“写入失败”，Index 可能把写入失败提示成“已取消导出”。
+2. `jsonImportIssues` 只保留无效片段和重复日期，候选日期直接由文本框重新解析；`mergeImportIssues()` 固定了 JSON 问题与用户编辑文本问题的合并顺序。
+3. PreferencesStore.saveDays 已返回明确的写入 status，但 Index 当前忽略该结果，因此 Index 仍只能确认内存更新，不能确认磁盘写入成功。
+4. JsonTransfer.export 不返回结果；取消和写入失败都在传输层结束，导出取消和成功已在模拟器复核，写入失败仍未触发。
 
 ## 9. 本步骤结论
 

@@ -43,7 +43,6 @@ YYYY-MM-DD
 | `dayDistance(from, to)` | 计算两个日期键的日差 | 用本地时间戳差除以 24 小时并四舍五入 |
 | `isValidDateKey(value)` | 同时检查格式和年月日回构结果 | 只接受严格 `YYYY-MM-DD` |
 | `formatShortDate(value)` | 生成 UI 月日文案 | 调用方必须传入合法键 |
-| `monthTitle(date)` | 生成年月标题 | 当前没有调用方 |
 
 日期键使用固定宽度年月日，因此代码中的字典序比较可以代表日期先后，例如：
 
@@ -96,7 +95,7 @@ interface MenstrualDay {
 - `PreferencesStore.saveDays()`：写入前清理数据；
 - `JsonTransfer.export()`：生成 JSON 文件前清理数据。
 
-`normalizeDays` 不过滤未来日期，也不重新验证 `source`。未来日期由手动记录和导入校验阻断，统计函数另外过滤未来日期；来源枚举依靠 ArkTS 类型和 JSON 导入解析阶段的检查，而不是由事实规范化函数运行时检查。
+`normalizeDays` 不过滤未来日期，也不重新验证 `source`。未来日期由手动记录和导入校验阻断，统计函数另外过滤未来日期；来源枚举依靠 ArkTS 类型和 JSON 导入解析阶段的检查，而不是由事实规范化函数运行时检查。阶段 2 暂不扩大规范化职责，因为增加运行时来源过滤会在损坏或旧数据场景静默丢弃日期事实。
 
 ### 2.3 `derivePeriods`
 
@@ -135,21 +134,6 @@ normalizeDays(days)
 
 当前实现取的是排序后数组的上侧中位位置：当间隔数量为偶数时，不取两个中间值的平均值。函数也假设输入 `periods` 已按开始日升序排列；当前调用方 `derivePeriods()` 满足这一前提，但函数内部没有再次排序或验证。
 
-### 2.5 `buildCalendarCells`
-
-`buildCalendarCells(year, month)` 生成固定 42 格、以周一为一周起点的日历单元，并为每格提供：
-
-```ts
-interface CalendarCell {
-  key: string;
-  day: number;
-  date: string;
-  inCurrentMonth: boolean;
-}
-```
-
-它使用 JavaScript `Date` 的零基月份参数，并把 `month` 直接传给 `new Date(year, month, 1)` 和 `getMonth() === month`。当前 `CalendarComponent` 没有调用它，而是自己生成当月 1 到最后一天；组件的月份按钮使用 1–12，再在调用 `Date` 时转换为零基月份。工程中因此存在两套日历格模型，且月份参数契约也没有被统一到共享函数上。
-
 ## 3. 本地持久化：`PreferencesStore`
 
 ### 3.1 存储键和生命周期
@@ -162,28 +146,30 @@ interface CalendarCell {
 | `menstrual-days` | string | `MenstrualDay[]` 的 JSON 字符串 |
 | `welcome-shown` | boolean | 是否已经写入首次欢迎标记 |
 
-它没有独立的实例状态对象、版本号或迁移逻辑。实例只持有一个可能为空的 `preferences.Preferences` 引用。
+它没有独立的实例状态对象、版本号或迁移逻辑。实例只持有一个可能为空的 `PreferencesBackend` 引用；真实 ArkData Preferences 由文件内适配器接入，测试可用替代 backend 复现读写结果。
 
 ### 3.2 打开与读取
 
 ```text
 PreferencesStore.open(context)
-  ├─ 成功 -> 保存 Preferences 引用
-  └─ 失败 -> 引用保持 undefined，但仍返回 Store 实例
+  ├─ 成功 -> 用 ArkDataPreferencesBackend 保存 Preferences 引用
+  └─ 失败 -> backend 为 undefined，但仍返回 Store 实例
 
 loadDays()
-  ├─ 无引用 -> []
-  ├─ 读取/JSON.parse/normalizeDays 成功 -> 规范化日期数组
-  └─ 任意异常 -> []
+  ├─ 无 backend -> { status: 'unavailable', days: [] }
+  ├─ 读取/JSON.parse/normalizeDays 成功 -> { status: 'success', days: [...] }
+  └─ 任意异常 -> { status: 'failed', days: [] }
 ```
 
-`hasSeenWelcome()` 的结构相同：无法使用 Preferences 或读取异常时返回 `false`。因此调用方看不到“没有记录”和“本地存储不可用/损坏”的区别。
+`hasSeenWelcome()` 返回 `{ status, seen }`，`saveDays()` 和 `markWelcomeShown()` 返回 `{ status }`。因此存储层已经保留“无记录”和“不可用/损坏”的内部区别；当前 `Index` 仍只消费 `days` 或 `seen`，保持原有可渲染降级，不新增用户可见错误状态。
 
 ### 3.3 写入
 
-`saveDays(days)` 先调用 `normalizeDays()`，再写入 JSON 字符串并 `flush()`。`markWelcomeShown()` 写入布尔值并 `flush()`。两者都捕获异常并返回 `void`，调用方无法确认写入是否成功。
+`saveDays(days)` 先调用 `normalizeDays()`，再通过 backend 写入 JSON 字符串并 `flush()`。`markWelcomeShown()` 写入布尔值并 `flush()`。两者都捕获异常并返回明确的 `success`、`unavailable` 或 `failed` 状态。
 
 `Index` 的当前流程是先更新内存 `markedDays`，再等待 `saveDays()`；保存失败时内存仍保留新数据，但下次启动可能恢复旧数据或空数组。欢迎标记在欢迎弹层打开前写入，若写入失败，下一次启动会重新判断为未展示过。
+
+阶段 2 在 Pura X 独立 `Emulator` 上验证了真实 ArkData 成功路径：已有日期可在应用启动时恢复；点击 2026-08-14 后强制停止并重启，该日期仍然存在；再次点击取消并重启后，该日期消失。`PreferencesStore.test.ets` 使用 fake backend 覆盖打开不可用、损坏 JSON、读取失败、`put` 失败和 `flush` 失败。操作系统级权限或沙箱故障未在模拟器中强行注入，但适配器和 Store 的失败映射已有受控测试证据。
 
 ## 4. 三层之间的调用关系
 
@@ -229,40 +215,35 @@ Index.markedDays
 - `ImportValidator.test.ets`：未来日期、已有日期、重复和问题保留；
 - `JsonTransfer.test.ets`：JSON 日期合法性和重复；
 - `TextDateParser.test.ets`：日期表达式和标准化；
-- `List.test.ets`：注册上述测试入口。
+- `MenstrualData.test.ets`：未来日期在事实中保留、派生时过滤、固定日历格契约和预测中位数规则；
+- `DateUtils.test.ets`、`ImportPipeline.test.ets`：日期工具和 JSON 回填组合链路；
+- `PreferencesStore.test.ets`：覆盖不可用存储、损坏 JSON、读取失败、`put/flush` 失败和欢迎标记读写结果；
+- `List.test.ets`：注册上述测试入口，共 56 项通过。
 
-当前没有针对以下数据基础边界的测试：
+当前仍有以下明确边界未由现有测试覆盖：
 
-- Preferences 打开失败、读取损坏 JSON、写入/flush 失败；
-- `normalizeDays` 对非法 `source`、空条目或重复来源的处理；
-- `parseDateKey` 收到非法日期时的归一化行为；
-- `predictNextPeriod` 输入未排序或偶数间隔时的中位数规则；
-- `buildCalendarCells` 的零基月份契约和当前无调用方状态。
+- `normalizeDays` 对非法 `source`、空条目或重复来源的处理；阶段 2 已明确不通过静默过滤改变这些数据的现有结果；
+- 设备时区/DST 变化对本地日期键运算的影响；
 
 ## 6. 当前明确的代码边界问题
 
-1. **存储错误被折叠为空数据或默认状态。** `open()` 失败、`loadDays()` 读取失败、JSON 损坏和 `hasSeenWelcome()` 读取失败分别都会表现为可继续运行的空数组或 `false`；调用方无法区分“确实没有记录”和“数据不可用”。
+1. **Index 尚未消费存储失败状态。** `PreferencesStore` 已通过 `{ status, days/seen }` 或 `{ status }` 表达打开、读取和写入结果，但 `Index` 仍只读取 `days`、`seen` 并忽略保存结果，因此页面仍会把“没有记录”和“读取失败”都按原有降级状态继续渲染，也不会显示持久化失败。
 
-2. **保存接口不返回结果。** `saveDays()` 和 `markWelcomeShown()` 吞掉 `put/flush` 异常并返回 `void`，`Index` 只能确认内存状态已经变化，不能确认本地数据已落盘。
+2. **事实规范化不校验 `source`。** `normalizeDays()` 只验证日期键；从 Preferences 解析出的任意 `source` 值会被保留并可能再次导出。JSON 文件解析会单独校验来源，但本地存储恢复和导出前规范化没有同等运行时约束。
 
-3. **事实规范化不校验 `source`。** `normalizeDays()` 只验证日期键；从 Preferences 解析出的任意 `source` 值会被保留并可能再次导出。JSON 文件解析会单独校验来源，但本地存储恢复和导出前规范化没有同等运行时约束。
+3. **日期工具的合法性责任由调用方承担。** `parseDateKey()` 对非法日期会使用 `Date` 的进位行为，`addDays()`、`dayDistance()`、`formatShortDate()` 也不主动拒绝非法输入。当前主要调用路径满足前置校验，但这些函数本身没有显式保护。
 
-4. **日期工具的合法性责任由调用方承担。** `parseDateKey()` 对非法日期会使用 `Date` 的进位行为，`addDays()`、`dayDistance()`、`formatShortDate()` 也不主动拒绝非法输入。当前主要调用路径满足前置校验，但这些函数本身没有显式保护。
+4. **经期时长规则集中在 `derivePeriods()`，并且使用日期间隔而非含首尾计数。** `endDate` 看起来是闭区间终点，但 `durationDays` 使用开始日到下一开始日的差值；最后一条又使用 `max(1, dayDistance(startDate, today))`。重构时不能仅根据字段名把计算改成 `+1`。
 
-5. **经期时长规则集中在 `derivePeriods()`，并且使用日期间隔而非含首尾计数。** `endDate` 看起来是闭区间终点，但 `durationDays` 使用开始日到下一开始日的差值；最后一条又使用 `max(1, dayDistance(startDate, today))`。重构时不能仅根据字段名把计算改成 `+1`。
+5. **预测函数的输入顺序和中位数规则是隐式前提。** `predictNextPeriod()` 不排序输入，偶数个周期间隔时取上侧中位位置；当前调用方依赖 `derivePeriods()` 的升序结果。把它迁移成独立服务时若增加排序或改用平均中位数，都会改变当前结果。
 
-6. **预测函数的输入顺序和中位数规则是隐式前提。** `predictNextPeriod()` 不排序输入，偶数个周期间隔时取上侧中位位置；当前调用方依赖 `derivePeriods()` 的升序结果。把它迁移成独立服务时若增加排序或改用平均中位数，都会改变当前结果。
+6. **本地存储格式没有版本边界。** `PreferencesStore` 直接把日期数组写成 JSON 字符串，没有 schemaVersion、迁移分支或损坏数据隔离；一旦字段结构变化，当前读取路径只能进入 `[]` 或保留部分可规范化数据。
 
-7. **日历格逻辑存在未接入的第二套实现。** `buildCalendarCells()` 生成固定 42 格并使用零基月份，当前 `CalendarComponent` 自己生成连续当月日期且不调用它；该函数不是当前日历 UI 的数据来源，但也不能只凭无调用方删除而忽略月份契约。
-
-8. **本地存储格式没有版本边界。** `PreferencesStore` 直接把日期数组写成 JSON 字符串，没有 schemaVersion、迁移分支或损坏数据隔离；一旦字段结构变化，当前读取路径只能进入 `[]` 或保留部分可规范化数据。
 
 ## 7. 不应误判为死代码的对象
 
 - `normalizeDays()` 虽然在读取、保存、导出和统计中多次调用，但它承担日期集合去重、排序和非法日期过滤，不是普通重复计算。
 - `derivePeriods()` 的 `today` 参数不是冗余，它决定进行中经期的结束日和未来日期过滤，也让测试可以固定日期。
-- `buildCalendarCells()` 当前没有调用方，但它与 `CalendarComponent` 的连续日期网格不是等价实现，必须先确认日历格责任再处理。
-- `DateUtils.monthTitle()` 当前没有引用，是未使用导出候选；它与 `normalizeDays`、`derivePeriods` 不存在隐藏调用关系。
 
 ## 8. 本步骤结论
 

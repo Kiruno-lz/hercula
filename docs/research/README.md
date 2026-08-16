@@ -5,7 +5,7 @@
 - [ArkTS 与 ArkUI 工具链](./arkts-toolchain.md)
 - [参考文档与参考仓库](./references.md)
 - [AppGallery Connect 与上架](./appgallery-release.md)
-- [响应式布局规范](./responsive-layout.md)
+- [响应式布局规范](../_archive/responsive-layout.md)
 
 已完成或暂不考虑的调研材料统一放在 [`docs/_archive/`](../_archive/) 中。
 

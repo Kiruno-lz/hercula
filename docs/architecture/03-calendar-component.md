@@ -124,7 +124,7 @@ calendarRenderVersion 的奇偶值决定使用 Track A 还是 Track B。A/B 两�
           -> [1, 2, 3, ..., 28/29/30/31]
               -> 7 列 Grid
 
-月份天数由组件内部的 monthDayCount 和 isLeapYear 计算，不调用 MenstrualData.buildCalendarCells，也不调用 DateUtils 的日历网格函数。
+月份天数由组件内部的 monthDayCount 和 isLeapYear 计算，不调用 DateUtils 的日历网格函数。
 
 每个日期格的处理顺序是：
 
@@ -139,13 +139,7 @@ calendarRenderVersion 的奇偶值决定使用 Track A 还是 Track B。A/B 两�
 
 当前 Grid 只有 7 列，但 calendarDayNumbersForOffset 没有加入月份第一天之前的空白格，也没有使用星期偏移。因此从代码事实看，每个月的 1 日都会从 Grid 的第一个位置开始，不会按真实星期对齐。
 
-工程里另有 MenstrualData.buildCalendarCells：
-
-- 计算月份第一天的周一偏移；
-- 生成固定 42 个格子；
-- 标记每格是否属于当前月。
-
-这不是当前 CalendarComponent 的等价重复实现。代码中同时保留了两套日历格生成逻辑：当前组件使用连续日期数组，MenstrualData.buildCalendarCells 没有调用方却保留了周一偏移、固定 42 格和当前月标记字段。当前代码没有明确的单一日历格生成责任归属，因此不能仅凭“没有调用方”把 buildCalendarCells 判定为死代码。
+当前仓库只有 CalendarComponent 的连续日期网格实现；日历格生成责任已收敛在组件内部，MenstrualData 不再保留未接入的第二套网格模型。
 
 ## 8. 布局参数在组件中的角色
 
@@ -165,11 +159,9 @@ compact 只影响标题是否渲染；scrollLayout 只影响外层高度是否�
 
 只记录代码已经明确存在、并会影响整理边界的问题：
 
-1. 当前组件和 MenstrualData 同时保留两套不等价的日历格生成逻辑，且没有单一责任归属；不能仅凭无调用方删除 buildCalendarCells。
-2. CalendarComponent 自己实现 monthDayCount 和 isLeapYear，日历格领域逻辑另有一份实现，日期计算责任发生重复。
-3. Track A/Track B 的月份网格 builder 结构重复，但 calendarRenderVersion 明确依赖它们强制重建；它们是“有用途的重复代码”，不能按死代码直接清理。
-4. formatYearLabel 使用 layoutMetrics.viewportWidth，而该值是完整窗口宽度；dual 模式下它与 CalendarComponent 实际可用列宽不是同一层级的数据。
-5. isCalendarDayVisible 的输入 day 已由 calendarDayNumbersForOffset 限制在合法月份范围内，因此当前调用结果恒为 Visible，没有实际隐藏分支。
+1. CalendarComponent 自己实现 monthDayCount 和 isLeapYear，月份网格计算集中在展示组件内部，不再与 domain 保留第二份生成模型。
+2. Track A/Track B 的月份网格 builder 结构重复，但 calendarRenderVersion 明确依赖它们强制重建；它们是“有用途的重复代码”，不能按死代码直接清理。
+3. formatYearLabel 使用 layoutMetrics.viewportWidth，而该值是完整窗口宽度；dual 模式下它与 CalendarComponent 实际可用列宽不是同一层级的数据。
 
 ## 10. 本步骤结论
 

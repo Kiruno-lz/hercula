@@ -42,7 +42,6 @@ ResponsivePageShell 是当前应用的布局适配器：
 | viewportWidth、viewportHeight | Index 的窗口监听 | 选择布局模式和计算尺寸 |
 | safeAreaTopInset、safeAreaBottomInset | Index 的系统避让区 | 计算可用高度和上下留白 |
 | densityPixels | Index 的显示屏信息 | 将像素安全区换算为 vp |
-| showLayoutModeDebug | Index 的开发开关 | 显示当前模式和原始窗口尺寸 |
 
 ### 局部状态
 

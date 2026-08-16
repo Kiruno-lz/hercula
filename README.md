@@ -48,7 +48,7 @@ entry/src/main/ets/
 ├── domain/           # 日期、周期时长和预测逻辑
 ├── data/             # Preferences 与 JSON 文件传输
 ├── components/       # 页面基础视图、操作菜单、加载和导入窗口
-└── parser/           # JSON 校验；文本/OCR 暂缓
+└── platform/         # Window 与系统能力边界适配
 ```
 
 当前 `Index.ets` 负责页面状态、Preferences 和导入流程编排；`ResponsivePageShell` 根据实际窗口宽高选择紧凑、单列、双排或整体滚动布局，基础展示与浮动窗口组件通过带默认值的 `@Prop` 与回调接入，不直接读写本地数据。
@@ -81,7 +81,7 @@ export PATH="/Applications/DevEco-Studio.app/Contents/tools/hvigor/bin:/Applicat
 从 [docs/README.md](./docs/README.md) 开始阅读：
 
 - [产品与交互设计](./docs/research/product-design.md)
-- [响应式布局规范](./docs/research/responsive-layout.md)
+- [响应式布局规范](./docs/_archive/responsive-layout.md)
 - [JSON Schema 规格](./docs/json_SPEC.md)
 - [归档文档](./docs/_archive/)
 - [研究资料入口](./docs/research/README.md)

@@ -12,7 +12,8 @@ Index
 │   ├─ isLoading
 │   ├─ 四个弹层布尔值
 │   ├─ textImportInput / textImportNotice
-│   └─ importValidation / jsonImportIssues
+│   ├─ jsonImportIssues / jsonCandidateLoaded
+│   └─ importValidation
 ├─ UI 缓存刷新状态
 │   └─ dataRevision
 └─ 窗口状态
@@ -48,9 +49,9 @@ sequenceDiagram
   OS->>A: 创建 UIAbility / WindowStage
   A->>I: loadContent(pages/Index)
   I->>S: open(UIAbilityContext)
-  S-->>I: Preferences 或不可用句柄（仍返回 Store 实例）
+  S-->>I: Store 实例（backend 成功或不可用）
   I->>S: loadDays()
-  S-->>I: normalizeDays 后的日期数组或 []
+  S-->>I: { status, days }；失败时 days=[]
   I->>S: hasSeenWelcome()
   alt 首次打开
     I->>S: markWelcomeShown()
@@ -61,9 +62,9 @@ sequenceDiagram
 
 系统启动窗口由 `start_window.json` 控制，`LoadingComponent` 由 `Index.isLoading` 控制；前者结束后才进入后者。`EntryAbility.onWindowStageCreate()` 加载页面失败时只有日志出口，失败不会进入 `Index`。
 
-窗口度量是另一条并行的生命周期流：`onPageShow` 获取窗口，注册 `windowSizeChange`、`windowRectChange`、`avoidAreaChange`；事件更新 `Index` 状态，`ResponsivePageShell` 再计算新的 `RuntimeLayoutMetrics`。`onPageHide` 负责解绑，避免页面切换后继续接收窗口事件。
+窗口度量是另一条并行的生命周期流：`Index.onPageShow` 调用 `WindowMetricsController.refresh()`，由控制器获取窗口、注册 `windowSizeChange`、`windowRectChange`、`avoidAreaChange`，并把窗口矩形、安全区、密度和方向策略收束为快照；Index 只接收快照并更新页面状态，`ResponsivePageShell` 再计算新的 `RuntimeLayoutMetrics`。`Index.onPageHide` 调用控制器解绑，避免页面切换后继续接收窗口事件。
 
-`PreferencesStore` 将打开失败、读取异常和损坏 JSON 折叠为空句柄、空数组或 `false`；保存方法吞掉异常且不返回结果。因此启动流程只能保证页面继续渲染，不能证明本地数据恢复成功。
+`PreferencesStore` 现在将打开、读取、解析和写入结果表达为显式 status；失败仍附带空数组或 `false`，以保持当前页面降级行为。`Index` 启动只消费 `days` 和 `seen`，保存路径仍忽略写入 status，因此启动可以继续渲染，但页面仍不会显示本地恢复或保存失败。
 
 ## 2. 手动记录日期
 
@@ -87,14 +88,14 @@ sequenceDiagram
   end
   I->>I: dataRevision += 1
   I->>S: saveDays(markedDays)
-  S-->>I: 无成功/失败结果
+  S-->>I: { status: success | unavailable | failed }
   I->>P: 新 markedDays + dataRevision
   P->>H: 通过 id/token 强制历史派生列表重建
 ```
 
 日历的当前月份、滑动动画和年/月跳转只停留在 `CalendarComponent` 内，不经过 `Index`，因此它们不会触发持久化或历史重算。
 
-手动记录先更新内存 `markedDays`，再调用保存；保存失败时页面内存仍然显示新状态，但下次启动可能恢复旧数据或空数组。`Index.feedback` 会记录成功/失败文案，但当前没有 UI 消费者。
+手动记录先更新内存 `markedDays`，再调用保存；保存失败时页面内存仍然显示新状态，但下次启动可能恢复旧数据或空数组。当前没有页面级持久化错误状态。
 
 ## 3. 历史统计
 
@@ -154,19 +155,19 @@ flowchart TD
 - `ImportConfirmationComponent` 只负责确认前展示和发出确认/返回回调。
 - `Index.confirmImport` 是唯一将确认结果写入事实数据的入口。
 
-文本格式、JSON 文件候选、备用 JSON 导入方法和分类数组的具体边界见[第七步导入链路解析](./07-import-pipeline.md)。
+文本格式、JSON 文件候选和分类数组的具体边界见[第七步导入链路解析](./07-import-pipeline.md)。
 
 导入的几个不可混淆的状态：
 
 | 情况 | `JsonTransfer` 返回 | `Index` 当前行为 |
 | --- | --- | --- |
-| 用户取消选择 | `undefined` | 静默返回 |
-| 文件为空、过大或读取失败 | `undefined` | 与取消选择无法区分 |
+| 用户取消选择 | `status='cancelled'` | 静默返回 |
+| 文件为空、过大或读取失败 | `status='empty'/'too-large'/'read-failed'` | 静默返回，但数据层已保留具体原因 |
 | JSON 格式/schema 错误 | 抛出异常 | 写入 `textImportNotice` |
-| JSON 空 `days` | 空候选、无问题 | 继续时不进入确认页，写入无输入反馈 |
+| JSON 空 `days` | 空候选、无问题 | 成功加载且用户未编辑时进入现有确认页，显示 0 条结果并禁用导入；手动空文本仍直接返回 |
 | 用户编辑 JSON 回填文本 | 文本重新解析，但旧 JSON 问题仍保留 | 问题数组与当前文本未重新关联 |
 
-只有 `ImportValidationResult.validDates` 可以进入确认落库；`JsonTransfer.import()` 不在这条约束内，当前没有页面调用方。
+只有 `ImportValidationResult.validDates` 可以进入确认落库；当前 JSON 文件入口也必须先经过这条约束。
 
 ## 5. 弹层挂载与关闭
 
@@ -199,20 +200,18 @@ sequenceDiagram
   J->>P: DocumentViewPicker.save()
   alt 用户取消
     P-->>J: 空 URI 列表
-    J-->>I: false
-    I-->>M: 已取消导出反馈
+    J-->>I: 结束且不写入
   else 用户选择位置
     P-->>J: URI
     J->>J: normalizeDays + schemaVersion/exportedAt
     J->>F: open READ_WRITE + write JSON
-    J-->>I: true/false
-    I-->>M: 成功或失败反馈
+    J-->>I: 写入完成或静默结束
   end
 ```
 
 导出只读当前内存中的 `markedDays`，失败不修改内存和 Preferences。
 
-`JsonTransfer.export()` 返回的 `false` 同时表示用户取消和文件写入失败；`Index.exportJson()` 因此会把两种情况分别映射为“已取消导出”或异常分支，无法从 `false` 本身可靠区分。导出写入使用 `READ_WRITE`，当前代码也没有显式截断已有目标文件，文件写入行为属于后续验证边界。
+`JsonTransfer.export()` 不再返回成功/失败状态：用户取消时直接结束，文件写入异常在传输层吞咽，`Index.exportJson()` 只等待文件操作完成。导出写入使用 `READ_WRITE`，当前代码也没有显式截断已有目标文件，文件写入行为属于后续验证边界。
 
 ## 7. 窗口与布局通信
 
@@ -231,16 +230,15 @@ WindowStage / Window
 
 布局变化不会修改日期事实，也不会触发导入、统计持久化或导出；它只改变组件组合和视觉参数。scroll 模式还会把方向策略设为纵向，其他模式使用自动旋转策略。
 
-`module.json5` 初始方向是 `auto_rotation`，`Index.applyOrientationPolicy()` 在窗口尺寸更新后再次设置方向偏好；因此方向配置同时存在于模块元数据和页面生命周期。
+`module.json5` 初始方向是 `auto_rotation`，`WindowMetricsController` 在窗口尺寸更新后根据布局模式再次设置方向偏好；因此方向配置同时存在于模块元数据和页面生命周期，但方向适配不再由 Index 直接实现。
 
 ## 8. 通信风险点
 
 - `dataRevision` 是通过改变节点 `id` 解决 UI 缓存问题的间接通信；迁移统计逻辑时必须验证历史页在 `Swiper` 离屏后仍刷新。
-- `feedback` 有完整的写入路径，但没有展示路径；用户可能收不到“已记录/导出失败”等反馈。是否补显示或删除状态需由 UI 验收决定，本轮不改。
 - `jsonImportIssues` 从 JSON 回填到文本框后再被文本解析；这意味着 JSON 问题与用户编辑后的文本结果并存，不能把 JSON 结果当成本地数据。
 - `HistoryComponent` 多次重复调用 `currentPeriods()`，目前是纯函数重算，不会改变结果，但重构时需要避免引入不同的“当前日期”或不一致快照。
 - `ImportConfirmationComponent` 只把 `candidateDates` 和 `invalidTokens` 生成预览行，其他分类数组通过摘要或状态反查使用；分类结果中只存在于 `duplicateDates` 的值不会单独生成预览行。
-- `Index.confirmImport()` 是异步回调，但确认组件没有忙状态输入；持久化完成前确认按钮仍可能再次触发。
-- `PreferencesStore.loadDays()` 将损坏数据当作空数组，`saveDays()` 无成功结果；数据流图中的“恢复/保存”不等于磁盘操作已成功。
-- `JsonTransfer.import()` 和页面实际的 `selectDateCandidates()` 是两套 JSON 入口，前者绕过统一校验与确认。
+- `Index.confirmImport()` 是异步回调，确认组件没有忙状态输入；编排层用非 UI 的进行中标记忽略持久化完成前的重复调用，按钮视觉和弹层结构不变。
+- `PreferencesStore.loadDays()` 对损坏数据返回 `failed` 与空数组，`saveDays()` 返回明确 status 但 `Index` 当前忽略它；数据流图中的“恢复/保存”不等于磁盘操作已成功。
+- `JsonTransfer.selectDateCandidates()` 只负责文件候选加载；统一校验与确认是 JSON 和文本共同的唯一落库前置链路。
 - `EntryAbility` 页面加载失败只有日志出口，无法进入页面级错误处理。

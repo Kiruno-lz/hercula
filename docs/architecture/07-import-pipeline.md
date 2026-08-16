@@ -15,8 +15,9 @@
 用户输入文本
   └─ TextImportComponent
        └─ Index.continueTextImport()
-            ├─ TextDateParser.parseTextDates()
-            └─ ImportValidator.validateImportDates()
+            └─ ImportPipeline.validateTextImport()
+                 ├─ TextDateParser.parseTextDates()
+                 └─ ImportValidator.validateImportDates()
 
 用户选择 JSON
   └─ JsonTransfer.selectDateCandidates()
@@ -32,16 +33,16 @@ ImportValidationResult
                  └─ markedDays -> PreferencesStore.saveDays()
 ```
 
-当前页面没有直接使用 `JsonTransfer.import()`。因此 JSON 文件不是直接转成 `MenstrualDay[]` 写入，而是先转为日期文本和问题列表，再与文本输入共用确认流程。
+JSON 文件不是直接转成 `MenstrualDay[]` 写入，而是先转为日期文本和问题列表，再与文本输入共用确认流程。
 
 ## 2. `TextDateParser`：文本语法识别
 
 ### 2.1 存在目的
 
-`TextDateParser` 把用户输入的自由文本转换成三个结果集合：
+文本解析和 JSON 解析都把输入转换为同一个 `DateCandidateResult`：
 
 ```ts
-interface TextDateParseResult {
+interface DateCandidateResult {
   dates: string[];
   invalidTokens: string[];
   duplicateDates: string[];
@@ -119,33 +120,25 @@ invalidTokens  = []
 4. 以 UTF-8 读取文本；
 5. 调用 `parseJsonDateCandidates()`。
 
-系统选择器取消、文件无法读取、文件为空或超过 4 MiB 时返回 `undefined`。JSON 格式或 schema 错误则由解析器抛出，再由 `Index.loadJsonIntoTextImport()` 捕获并写入 `textImportNotice`。
+系统选择器取消、文件无法读取、文件为空或超过 4 MiB 时返回带明确 `status` 的 `JsonCandidateLoadResult`，分别对应 `cancelled`、`read-failed`、`empty` 和 `too-large`；成功时返回 `success` 和候选结果。`Index.loadJsonIntoTextImport()` 对非成功结果仍直接返回，因此没有改变当前页面文案或交互。JSON 格式或 schema 错误仍由解析器抛出，再由 Index 捕获并写入 `textImportNotice`。
 
 ### 3.3 页面实际的 JSON 接入
 
 `Index.loadJsonIntoTextImport()` 收到候选后：
 
-- 把 `result.dates.join('\n')` 回填到文本框；
+- 把 `result.candidates.dates.join('\n')` 回填到文本框；
 - 把 `invalidTokens` 和 `duplicateDates` 保存到 `jsonImportIssues`；
 - 根据问题数量生成提示。
 
 这意味着 JSON 的重复条目和非法条目不一定出现在文本框中，但问题会继续参与后续校验。用户继续时，Index 再次解析当前文本，并把新解析的问题与旧的 JSON 问题数组拼接后交给 `ImportValidator`。
 
-### 3.4 未接入的直接导入路径
+### 3.4 文件结果边界
 
-`JsonTransfer.import()` 会调用 `selectDateCandidates()`，把候选日期直接映射成 `source='import'` 的 `MenstrualDay[]`，再包装成 `JsonImportResult`。当前仓库没有它的调用方。
-
-这条路径不调用 `ImportValidator`，因此它不会执行：
-
-- 未来日期过滤；
-- 与本地已有记录比较；
-- 用户确认前的阻断。
-
-它不是当前页面的实际导入路径，而是一个保留在 `JsonTransfer` 中的备用模型。
+`JsonTransfer.selectDateCandidates()` 只返回候选日期和文件读取状态，不创建 `MenstrualDay`。未来日期过滤、已有记录比较和用户确认前的阻断统一由 `ImportPipeline.validateTextImport()` 完成；确认后才由 `createImportedDays()` 创建 `source='import'` 的事实记录。
 
 ### 3.5 `source` 字段的实际处理
 
-JSON 解析会检查输入条目的 `source` 必须是 `manual` 或 `import`，但 `JsonDateCandidateResult` 不保留每条日期的来源。当前页面确认时统一创建：
+JSON 解析会检查输入条目的 `source` 必须是 `manual` 或 `import`，但 `DateCandidateResult` 不保留每条日期的来源。当前页面确认时统一创建：
 
 ```ts
 { date: date, source: 'import' }
@@ -201,15 +194,14 @@ interface ImportValidationResult {
 
 ## 5. `Index` 的确认和落库
 
-`Index.continueTextImport()` 是解析与校验的汇聚点：
+`Index.continueTextImport()` 只负责把页面状态传给 `domain/ImportPipeline.ets` 的 `validateTextImport()`：
 
-1. 对当前 `textImportInput` 调用 `parseTextDates()`；
-2. 将文本问题与 `jsonImportIssues.invalidTokens/duplicateDates` 合并；
-3. 将当前已有日期和当天日期传给 `validateImportDates()`；
-4. 如果既没有候选日期也没有问题，写入反馈并保持文本弹层；
-5. 否则保存 `importValidation` 并切换到确认弹层。
+1. 传入当前 `textImportInput`、`jsonImportIssues`、已有日期、当天日期和当前年份；
+2. 接收 `validateTextImport()` 返回的 `ImportValidationResult`；
+3. 如果既没有候选日期也没有问题，写入反馈并保持文本弹层；
+4. 否则保存 `importValidation` 并切换到确认弹层。
 
-`Index.confirmImport()` 只读取 `importValidation.validDates`：
+`Index.confirmImport()` 只读取 `importValidation.validDates`，通过 `createImportedDays()` 生成事实：
 
 ```text
 validDates
@@ -231,9 +223,9 @@ validDates
 - `JsonTransfer.test.ets` 覆盖 schema v1、重复日期、非法条目和不支持版本。
 - `ImportValidator.test.ets` 覆盖未来日期、已有日期和解析问题保留。
 
-### 当前缺少的组合覆盖
+### 当前缺少的页面集成覆盖
 
-现有测试分别调用三个纯函数，没有覆盖完整的：
+`ImportPipeline.test.ets` 已覆盖候选回填、问题合并、文本编辑后的校验分类和确认日期到事实的转换；仍没有覆盖真实页面和系统能力的完整路径：
 
 ```text
 JSON 文件候选
@@ -244,42 +236,39 @@ JSON 文件候选
   -> Index.confirmImport
 ```
 
-因此 JSON 问题与文本编辑的关系、空 JSON 数组的页面行为、文件读取失败提示和确认期间重复点击，都不是现有单元测试能证明的行为。
+模拟器已补齐以下页面级路径：有效 JSON 回填后进入确认页并导入 3 条新日期；重复 JSON 在确认页显示 3 条“已存在”；非法 schema 回到文本导入弹层并显示具体错误；文件选择器取消保持文本导入弹层且不新增提示；导出取消返回历史页，导出成功后文件出现在系统 Download 列表。
+
+仍未由当前运行环境证明的路径是：导出写入失败。阶段 12 已尝试将 `/storage/media/100/local/files/Docs/Download/hercula-2026-08-17.json` 设为只读，但模拟器 shell 对 `file_manager` 用户持有的文件执行 `chmod 444` 返回 `Permission denied`。阶段 17 在 Pura 90 进一步尝试由 shell 在同一 `Documents/Download` 目录创建 `readonly-shell-phase17.json`，`touch` 也返回 `Permission denied`；虽然可以在 `/data/local/tmp` 创建 `0444` 的 `readonly-export-phase17.json`，但保存文件选择器只暴露 `Download` 和 `Documents`，不会提供该路径，因此现有 `JsonTransfer.export()` 无法接收到这个只读 URI。不能用 `parseJsonDateCandidates()` 的单元测试替代。空文件和超过 4 MiB 文件已由系统文件选择器实际访问，均回到文本导入弹层且没有新增页面提示；空 JSON 数组已进入现有确认页并显示 0 条结果；确认按钮连续点击已回到历史页，目标日期只出现一条。
 
 ### 已确认的文档偏差
 
 `TextDateParser.test.ets` 和当前正则实现明确支持 `26-08-14`、`20260814` 等输入，但 `docs/examples/text-date-import-cases.md` 把这些形式列为“不支持的表达式”。这是测试/实现与示例文档之间的直接矛盾，不是解析器的未知行为。
 
-`docs/json_SPEC.md` 写明“空数组可导入，结果为空状态”；当前 `Index.continueTextImport()` 在候选和问题都为空时不会打开确认页，而是写入 `feedback` 并保持文本导入页。当前实现没有把空数组送入确认态。
+`docs/json_SPEC.md` 写明“空数组可导入，结果为空状态”；当前 `Index` 只对成功加载且未被用户编辑的空 JSON 保留一次性来源标记，`continueTextImport()` 将其送入现有确认弹层，显示 0 条结果并禁用导入按钮。手动空文本和用户编辑后的空文本仍按“没有输入”直接返回。
 
 ## 7. 当前明确的代码边界问题
 
 1. **JSON 问题与可编辑文本没有重新建立关联。** JSON 回填只写入去重后的 `dates`；非法条目和重复条目不写入文本框，但 `jsonImportIssues` 会在用户修改文本后继续被拼接进校验结果。用户清空或修改文本不能移除原 JSON 问题，确认结果仍会携带这些问题。
 
-2. **文件选择取消、文件读取失败和文件大小不合法共用 `undefined`。** `Index.loadJsonIntoTextImport()` 对这些情况都直接返回，没有可区分的提示；只有 JSON 语法/schema 异常会进入 `textImportNotice`。因此页面无法从当前返回值判断用户取消还是文件不可用。
+2. **文件结果已经在数据层区分，但页面暂不消费。** `selectDateCandidates()` 现在返回 `JsonCandidateLoadResult.status`，可区分取消、读取失败、空文件和超大文件；`Index.loadJsonIntoTextImport()` 仍对非成功结果直接返回，因而保持现有静默行为，不把内部状态误写成用户提示。
 
-3. **`JsonTransfer.import()` 绕过统一确认链路。** 该方法当前无调用方，但如果被接入，会直接把候选日期转换成记录，不执行未来/已有日期分类，也不等待确认。它与页面实际使用的 `selectDateCandidates()` 代表两套不同导入协议。
+3. **候选协议已统一，但来源仍不进入候选事实。** `TextDateParser` 和 `JsonTransfer` 都返回 `DateCandidateResult`；`Index` 用其字段构造独立的 `ImportIssues` 保存 JSON 问题。候选协议不表达 JSON 原始 `source`，确认落库仍统一使用 `source='import'`。
 
-4. **文本和 JSON 候选结果使用两个结构相同但未共享的接口。** `TextDateParseResult` 与 `JsonDateCandidateResult` 都是 `dates/invalidTokens/duplicateDates`，而 `Index.jsonImportIssues` 直接使用文本解析结果类型保存 JSON 问题。这依赖 ArkTS 的结构兼容，没有表达“两个来源共用同一候选协议”的显式边界。
+4. **JSON 输入的 `source` 被验证后丢弃。** 解析器检查每条来源是否合法，但候选结果不携带来源，确认落库时所有日期统一标记为 `source='import'`。这不是数据丢失到日期事实层的问题，但会改变 JSON 中 `manual` 条目的来源值。
 
-5. **JSON 输入的 `source` 被验证后丢弃。** 解析器检查每条来源是否合法，但候选结果不携带来源，确认落库时所有日期统一标记为 `source='import'`。这不是数据丢失到日期事实层的问题，但会改变 JSON 中 `manual` 条目的来源值。
+5. **确认分类与预览行依赖两种数据形状。** `ImportValidator` 把重复日期作为报告数组保留，同时允许去重后的日期进入 `validDates`；确认页又只遍历 `candidateDates` 和 `invalidTokens`。因此“重复”既可能是某个候选行的状态，也可能只存在于摘要数据中，不能把 `duplicateDates` 简单改成 `validDates` 的排除集合。
 
-6. **空 JSON 数组无法进入确认流程。** `parseJsonDateCandidates()` 可以返回空候选且无问题的结果，`Index.continueTextImport()` 却把它当作“没有输入”处理；这与 JSON 规格中定义的空数组导入行为不一致。
-
-7. **确认分类与预览行依赖两种数据形状。** `ImportValidator` 把重复日期作为报告数组保留，同时允许去重后的日期进入 `validDates`；确认页又只遍历 `candidateDates` 和 `invalidTokens`。因此“重复”既可能是某个候选行的状态，也可能只存在于摘要数据中，不能把 `duplicateDates` 简单改成 `validDates` 的排除集合。
-
-8. **跨模块导入流程没有组合测试。** 当前测试能证明三个纯函数的局部结果，不能证明 JSON 回填、旧问题合并、确认切换和最终落库之间的联合行为。后续清理任何候选模型或问题数组前，需要先以当前页面实际路径补足这条证据。
+6. **页面集成导入流程仍没有自动化测试。** 纯逻辑 `ImportPipeline.test.ets` 已固定 JSON 候选回填后的校验、旧问题合并和确认事实转换；但 JSON 文件选择、TextArea 回填、确认弹层切换和真实 `Index.confirmImport()` 仍需页面运行时证据。后续改动状态协议前，不能把纯逻辑测试当作页面流程证据。
 
 ## 8. 不应误判为死代码的对象
 
 - `ImportValidator` 不在 `parseJsonDateCandidates()` 中过滤未来日期，这是分层边界，不是漏写；页面统一在校验阶段处理。
 - `duplicateDates` 不从 `validDates` 排除，是当前“输入去重后保留一个日期”的实现语义，测试已有证据。
-- `JsonTransfer.import()` 和 `JsonImportResult` 在当前仓库确实没有调用方，但它们不是与 `selectDateCandidates()` 等价的简单重复；删除前必须先处理它代表的备用导入协议。
 - `TextDateParser` 的正则提取而不是整 token 匹配，是为了支持带说明文字的日期输入，不能仅凭正则未锚定删除。
 
 ## 9. 本步骤结论
 
-导入链路当前有一个实际使用的统一确认流和一个未接入的直接 JSON 流：
+导入链路当前只有一个实际使用的统一确认流：
 
 ```text
 实际页面：候选 -> 文本回填 -> 重新解析 -> 统一校验 -> 用户确认 -> 落库
