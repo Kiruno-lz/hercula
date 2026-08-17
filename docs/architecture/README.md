@@ -59,6 +59,7 @@ Index ──> modal components                    欢迎、文本导入、导入
 - [第八步：数据基础层](./08-data-foundation.md)：解析本地持久化、日期工具、事实规范化和统计派生。
 - [第九步：入口与全局引用审查](./09-entry-and-global-audit.md)：核对启动链路、测试入口、未接入符号和资源/文档漂移。
 - [初步重构计划](./10-refactor-plan.md)：按行为基线、数据契约、Index 编排、展示层和最终清理排列执行顺序。
+- [视觉主题与响应式布局阶段计划](./11-visual-theme-and-layout-refactor-plan.md)：按 `color → BulrBackground → refactor_responsive_layout` 顺序推进主题、动态背景和布局逻辑重构。
 - [组件与通信](./components.md)：逐文件说明组件职责、输入、输出、内部状态和依赖方向。
 - [数据模型与规则](./data-model.md)：说明事实数据、派生数据、导入 DTO、本地存储和业务不变量。
 - [运行流程与数据流](./data-flow.md)：说明启动、记录、统计、导入、导出和窗口变化的时序。
