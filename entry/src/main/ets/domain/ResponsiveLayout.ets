@@ -114,7 +114,7 @@ const CALENDAR_GRID_COLUMN_GAP_VP: number = 2;
 const CALENDAR_MONTH_CARD_TOP_INSET_RATIO: number = 0.0167;
 const CALENDAR_YEAR_LABEL_SHORT_THRESHOLD_VP: number = 1200;
 const SINGLE_CALENDAR_GRID_ROW_GAP_RATIO: number =
-  SINGLE_CALENDAR_GRID_ROW_GAP_BASELINE_VP / PURA_X_SINGLE_BASELINE_PAGE_HEIGHT_VP + 0.03;
+  SINGLE_CALENDAR_GRID_ROW_GAP_BASELINE_VP / PURA_X_SINGLE_BASELINE_PAGE_HEIGHT_VP;
 const DUAL_CALENDAR_GRID_ROW_GAP_RATIO: number =
   SINGLE_CALENDAR_GRID_ROW_GAP_BASELINE_VP / PURA_X_SINGLE_BASELINE_PAGE_HEIGHT_VP;
 const PURA_X_SINGLE_MONTH_CARD_TOP_INSET_VP: number =
@@ -133,6 +133,39 @@ const CALENDAR_YEAR_BUTTON_MAX_WIDTH_VP: number = 96;
 const CALENDAR_MONTH_BUTTON_MAX_WIDTH_VP: number = 66;
 const MIN_BOTTOM_INSET_RATIO: number = 0.02;
 const CALENDAR_TITLE_COLUMN_SPACE_VP: number = 2;
+const HISTORY_SECTION_GAP_VP: number = 16;
+const HISTORY_TOP_INSET_RATIO: number = 0.0212;
+const HISTORY_BOTTOM_INSET_RATIO: number = 0.0152;
+const ACTION_MENU_COLLAPSED_SIZE_VP: number = 44;
+const ACTION_MENU_ICON_SIZE_VP: number = 24;
+const ACTION_MENU_EXPANDED_WIDTH_VP: number = 184;
+const ACTION_MENU_EXPANDED_HEIGHT_VP: number = 220;
+const ACTION_MENU_ITEM_HEIGHT_VP: number = 40;
+const ACTION_MENU_THEME_ROW_HEIGHT_VP: number = 32;
+const ACTION_MENU_THEME_SWATCH_SIZE_VP: number = 22;
+const ACTION_MENU_HORIZONTAL_PADDING_VP: number = 18;
+const ACTION_MENU_VERTICAL_PADDING_VP: number = 16;
+const ACTION_MENU_COLLAPSED_ANCHOR_OFFSET_VP: number = 140;
+const ACTION_MENU_EXPANDED_ANCHOR_OFFSET_Y_VP: number = -176;
+
+interface ModeLayoutConfig {
+  calendarContentWidthRatio: number;
+  calendarGridWidthRatio: number;
+  calendarHorizontalPaddingVp: number;
+  calendarInnerTopInsetRatio: number;
+  calendarSelectorVerticalGapVp: number;
+  calendarGridRowGapVp: number;
+  calendarMonthCardTopInsetRatio: number;
+  calendarTopInsetRatio: number;
+  calendarHeight: string;
+  calendarBottomInsetRatio: number;
+  historyTopInsetRatio: number;
+  historyBottomInsetRatio: number;
+  scrollCalendarHistoryGapVp: number;
+  scrollHistoryBottomInsetVp: number;
+  compactHistoryEnabled: boolean;
+  fixedActionMenu: boolean;
+}
 
 /**
  * Classify the page from the complete window rectangle.
@@ -157,7 +190,7 @@ export function classifyLayoutMode(width: number, height: number): PageLayoutMod
   if (ratio < SCROLL_MAX_RATIO || ratio > DUAL_MAX_RATIO) {
     return 'scroll';
   }
-  if (isSingleDualWindow(width, height, ratio)) {
+  if (isSingleWindow(width, height, ratio)) {
     return 'single';
   }
   return 'dual';
@@ -177,28 +210,21 @@ export function resolveRuntimeLayoutMetrics(
   const density: number = Math.max(1, densityPixels);
   const contentHeight: number = Math.max(1, (safeHeight - safeTop - safeBottom) / density);
   const mode: PageLayoutMode = classifyLayoutMode(safeWidth, safeHeight);
-
-  const minimumBottomInset: number = Math.max(24, (safeWidth * MIN_BOTTOM_INSET_RATIO) / density);
   const viewportWidthVp: number = safeWidth / density;
   const viewportHeightVp: number = safeHeight / density;
-  const calendarContentWidthRatio: number = mode === 'compact' || mode === 'scroll'
-    ? 1
-    : CALENDAR_CONTENT_WIDTH_RATIO;
-  const calendarGridWidthRatio: number = mode === 'compact' ? 1 : CALENDAR_GRID_WIDTH_RATIO;
-  const calendarHorizontalPaddingVp: number = mode === 'scroll'
-    ? SCROLL_CALENDAR_HORIZONTAL_PADDING_VP
-    : CALENDAR_PAGE_HORIZONTAL_PADDING_VP;
-  const calendarInnerTopInsetRatio: number = mode === 'scroll'
-    ? SCROLL_CALENDAR_INNER_TOP_INSET_RATIO
-    : 0.04;
-  const calendarSelectorVerticalGapVp: number = mode === 'compact' ? 11 : 6;
-  const calendarGridRowGapVp: number = mode === 'scroll'
-    ? SCROLL_CALENDAR_GRID_ROW_GAP_VP
-    : (mode === 'single'
-      ? viewportHeightVp * SINGLE_CALENDAR_GRID_ROW_GAP_RATIO
-      : (mode === 'dual'
-        ? viewportHeightVp * DUAL_CALENDAR_GRID_ROW_GAP_RATIO
-        : (mode === 'compact' && safeHeight < COMPACT_MAX_DIMENSION ? 3 : 15)));
+  const minimumBottomInset: number = Math.max(24, (safeWidth * MIN_BOTTOM_INSET_RATIO) / density);
+  const modeConfig: ModeLayoutConfig = resolveModeLayoutConfig(
+    mode,
+    safeHeight,
+    viewportHeightVp
+  );
+  const calendarContentWidthRatio: number = modeConfig.calendarContentWidthRatio;
+  const calendarGridWidthRatio: number = modeConfig.calendarGridWidthRatio;
+  const calendarHorizontalPaddingVp: number = modeConfig.calendarHorizontalPaddingVp;
+  const calendarInnerTopInsetRatio: number = modeConfig.calendarInnerTopInsetRatio;
+  const calendarSelectorVerticalGapVp: number = modeConfig.calendarSelectorVerticalGapVp;
+  const calendarGridRowGapVp: number = modeConfig.calendarGridRowGapVp;
+  const calendarMonthCardTopInsetRatio: number = modeConfig.calendarMonthCardTopInsetRatio;
   const calendarGridHeightVp: number =
     (CALENDAR_DATE_ROW_COUNT * CALENDAR_DATE_ROW_HEIGHT_VP)
       + ((CALENDAR_DATE_ROW_COUNT - 1) * calendarGridRowGapVp);
@@ -216,9 +242,6 @@ export function resolveRuntimeLayoutMetrics(
     ? 0
     : calendarTitleFontSizeVp + CALENDAR_SUBTITLE_FONT_SIZE_VP + CALENDAR_TITLE_COLUMN_SPACE_VP;
   const calendarInnerTopInsetVp: number = calendarComponentWidthVp * calendarInnerTopInsetRatio;
-  const calendarMonthCardTopInsetRatio: number = mode === 'single'
-    ? SINGLE_CALENDAR_MONTH_CARD_TOP_INSET_RATIO
-    : CALENDAR_MONTH_CARD_TOP_INSET_RATIO;
   const calendarMonthCardTopInsetVp: number = mode === 'single'
     ? viewportWidthVp * SINGLE_CALENDAR_MONTH_CARD_TOP_INSET_RATIO
     : calendarComponentWidthVp * CALENDAR_MONTH_CARD_TOP_INSET_RATIO;
@@ -253,7 +276,7 @@ export function resolveRuntimeLayoutMetrics(
     minimumBottomInset,
     contentHeight - calendarRequiredHeightVp - pageTopInset
   );
-  const compactTopInset: number = safeWidth * 0.03;
+  const compactTopInset: number = safeWidth * modeConfig.calendarTopInsetRatio;
   const calendarSelectorScale: number = clamp(
     calendarComponentWidthVp / PURA_X_SINGLE_CALENDAR_CONTENT_WIDTH_VP,
     0.82,
@@ -282,17 +305,15 @@ export function resolveRuntimeLayoutMetrics(
     calendarBottomInsetVp: mode === 'compact'
       ? minimumBottomInset
       : (mode === 'scroll' ? 0 : pageBottomInset),
-    calendarTopInsetRatio: mode === 'scroll'
-      ? SCROLL_CALENDAR_TOP_INSET_RATIO
-      : (mode === 'compact' ? 0.03 : (mode === 'dual' ? DUAL_CALENDAR_TOP_INSET_RATIO : 0.25)),
-    calendarBottomInsetRatio: 0.02,
+    calendarTopInsetRatio: modeConfig.calendarTopInsetRatio,
+    calendarBottomInsetRatio: modeConfig.calendarBottomInsetRatio,
     calendarInnerTopInsetRatio: calendarInnerTopInsetRatio,
     calendarMonthCardTopInsetRatio: calendarMonthCardTopInsetRatio,
     calendarMonthCardTopInsetVp: calendarMonthCardTopInsetVp,
     calendarHorizontalPaddingVp: calendarHorizontalPaddingVp,
     calendarContentWidthRatio: calendarContentWidthRatio,
     calendarGridWidthRatio: calendarGridWidthRatio,
-    calendarHeight: mode === 'scroll' ? 'auto' : '100%',
+    calendarHeight: modeConfig.calendarHeight,
     calendarYearLabelShortThresholdVp: CALENDAR_YEAR_LABEL_SHORT_THRESHOLD_VP,
     calendarTitleFontSizeVp: calendarTitleFontSizeVp,
     calendarSubtitleFontSizeVp: CALENDAR_SUBTITLE_FONT_SIZE_VP,
@@ -308,31 +329,31 @@ export function resolveRuntimeLayoutMetrics(
     calendarGridColumnGapVp: CALENDAR_GRID_COLUMN_GAP_VP,
     calendarDateSizeVp: CALENDAR_DATE_SIZE_VP,
     calendarDateRowHeightVp: CALENDAR_DATE_ROW_HEIGHT_VP,
-    historyTopInsetRatio: mode === 'scroll' ? 0 : 0.0212,
-    historyBottomInsetRatio: 0.0152,
-    historySectionGapVp: 16,
-    scrollCalendarHistoryGapVp: mode === 'scroll' ? 56 : 0,
-    scrollHistoryBottomInsetVp: mode === 'scroll' ? SCROLL_HISTORY_BOTTOM_INSET_VP : 0,
+    historyTopInsetRatio: modeConfig.historyTopInsetRatio,
+    historyBottomInsetRatio: modeConfig.historyBottomInsetRatio,
+    historySectionGapVp: HISTORY_SECTION_GAP_VP,
+    scrollCalendarHistoryGapVp: modeConfig.scrollCalendarHistoryGapVp,
+    scrollHistoryBottomInsetVp: modeConfig.scrollHistoryBottomInsetVp,
     historyShortBarThresholdRatio: HISTORY_SHORT_BAR_THRESHOLD_RATIO,
     historyShortBarOffsetVp: HISTORY_SHORT_BAR_OFFSET_VP,
     historyPredictionGapVp: 8,
     historyPeriodsGapVp: 14,
     compactHistoryContainerRatio: COMPACT_HISTORY_CONTAINER_RATIO,
-    actionMenuCollapsedSizeVp: 44,
-    actionMenuIconSizeVp: 24,
-    actionMenuExpandedWidthVp: 184,
-    actionMenuExpandedHeightVp: 220,
-    actionMenuItemHeightVp: 40,
-    actionMenuThemeRowHeightVp: 32,
-    actionMenuThemeSwatchSizeVp: 22,
-    actionMenuHorizontalPaddingVp: 18,
-    actionMenuVerticalPaddingVp: 16,
-    actionMenuCollapsedAnchorOffsetVp: 140,
-    actionMenuExpandedAnchorOffsetYVp: -176,
+    actionMenuCollapsedSizeVp: ACTION_MENU_COLLAPSED_SIZE_VP,
+    actionMenuIconSizeVp: ACTION_MENU_ICON_SIZE_VP,
+    actionMenuExpandedWidthVp: ACTION_MENU_EXPANDED_WIDTH_VP,
+    actionMenuExpandedHeightVp: ACTION_MENU_EXPANDED_HEIGHT_VP,
+    actionMenuItemHeightVp: ACTION_MENU_ITEM_HEIGHT_VP,
+    actionMenuThemeRowHeightVp: ACTION_MENU_THEME_ROW_HEIGHT_VP,
+    actionMenuThemeSwatchSizeVp: ACTION_MENU_THEME_SWATCH_SIZE_VP,
+    actionMenuHorizontalPaddingVp: ACTION_MENU_HORIZONTAL_PADDING_VP,
+    actionMenuVerticalPaddingVp: ACTION_MENU_VERTICAL_PADDING_VP,
+    actionMenuCollapsedAnchorOffsetVp: ACTION_MENU_COLLAPSED_ANCHOR_OFFSET_VP,
+    actionMenuExpandedAnchorOffsetYVp: ACTION_MENU_EXPANDED_ANCHOR_OFFSET_Y_VP,
     actionMenuRightInsetRatio: ACTION_MENU_RIGHT_INSET_RATIO,
     actionMenuBottomInsetRatio: ACTION_MENU_BOTTOM_INSET_RATIO,
-    compactHistoryEnabled: mode === 'compact',
-    fixedActionMenu: mode === 'scroll'
+    compactHistoryEnabled: modeConfig.compactHistoryEnabled,
+    fixedActionMenu: modeConfig.fixedActionMenu
   };
 }
 
@@ -347,8 +368,97 @@ function isCompactWindow(width: number, height: number, ratio: number): boolean 
     && ratio <= COMPACT_MAX_RATIO;
 }
 
-function isSingleDualWindow(width: number, height: number, ratio: number): boolean {
-  return width <= COMPACT_MAX_DIMENSION * 2
-    && ratio <= COMPACT_MIN_RATIO
-    && ratio >= SCROLL_MAX_RATIO;
+function isSingleWindow(width: number, height: number, ratio: number): boolean {
+  // 中低分辨率窗口优先保持 single；只有大尺寸近方形横屏才启用 dual。
+  if (ratio < DUAL_MIN_RATIO) {
+    return !(width > 2000 && width > height && ratio >= 0.9);
+  }
+  return width <= COMPACT_MAX_DIMENSION * 2;
+}
+
+// 模式已经分类后，所有模式差异只在这里赋值；下方的公共计算只负责单位换算、
+// 日历尺寸推导和安全区约束，避免组件通过条件重新判断运行时。
+function resolveModeLayoutConfig(
+  mode: PageLayoutMode,
+  physicalHeight: number,
+  viewportHeightVp: number
+): ModeLayoutConfig {
+  if (mode === 'compact') {
+    return {
+      calendarContentWidthRatio: 1,
+      calendarGridWidthRatio: 1,
+      calendarHorizontalPaddingVp: CALENDAR_PAGE_HORIZONTAL_PADDING_VP,
+      calendarInnerTopInsetRatio: 0.04,
+      calendarSelectorVerticalGapVp: 11,
+      calendarGridRowGapVp: physicalHeight < COMPACT_MAX_DIMENSION ? 3 : 15,
+      calendarMonthCardTopInsetRatio: CALENDAR_MONTH_CARD_TOP_INSET_RATIO,
+      calendarTopInsetRatio: 0.03,
+      calendarHeight: '100%',
+      calendarBottomInsetRatio: 0.02,
+      historyTopInsetRatio: HISTORY_TOP_INSET_RATIO,
+      historyBottomInsetRatio: HISTORY_BOTTOM_INSET_RATIO,
+      scrollCalendarHistoryGapVp: 0,
+      scrollHistoryBottomInsetVp: 0,
+      compactHistoryEnabled: true,
+      fixedActionMenu: false
+    };
+  }
+  if (mode === 'single') {
+    return {
+      calendarContentWidthRatio: CALENDAR_CONTENT_WIDTH_RATIO,
+      calendarGridWidthRatio: CALENDAR_GRID_WIDTH_RATIO,
+      calendarHorizontalPaddingVp: CALENDAR_PAGE_HORIZONTAL_PADDING_VP,
+      calendarInnerTopInsetRatio: 0.04,
+      calendarSelectorVerticalGapVp: 6,
+      calendarGridRowGapVp: viewportHeightVp * SINGLE_CALENDAR_GRID_ROW_GAP_RATIO,
+      calendarMonthCardTopInsetRatio: SINGLE_CALENDAR_MONTH_CARD_TOP_INSET_RATIO,
+      calendarTopInsetRatio: PURA_X_SINGLE_TOP_INSET_RATIO,
+      calendarHeight: '100%',
+      calendarBottomInsetRatio: 0.02,
+      historyTopInsetRatio: HISTORY_TOP_INSET_RATIO,
+      historyBottomInsetRatio: HISTORY_BOTTOM_INSET_RATIO,
+      scrollCalendarHistoryGapVp: 0,
+      scrollHistoryBottomInsetVp: 0,
+      compactHistoryEnabled: false,
+      fixedActionMenu: false
+    };
+  }
+  if (mode === 'dual') {
+    return {
+      calendarContentWidthRatio: CALENDAR_CONTENT_WIDTH_RATIO,
+      calendarGridWidthRatio: CALENDAR_GRID_WIDTH_RATIO,
+      calendarHorizontalPaddingVp: CALENDAR_PAGE_HORIZONTAL_PADDING_VP,
+      calendarInnerTopInsetRatio: 0.04,
+      calendarSelectorVerticalGapVp: 6,
+      calendarGridRowGapVp: viewportHeightVp * DUAL_CALENDAR_GRID_ROW_GAP_RATIO,
+      calendarMonthCardTopInsetRatio: CALENDAR_MONTH_CARD_TOP_INSET_RATIO,
+      calendarTopInsetRatio: DUAL_CALENDAR_TOP_INSET_RATIO,
+      calendarHeight: '100%',
+      calendarBottomInsetRatio: 0.02,
+      historyTopInsetRatio: HISTORY_TOP_INSET_RATIO,
+      historyBottomInsetRatio: HISTORY_BOTTOM_INSET_RATIO,
+      scrollCalendarHistoryGapVp: 0,
+      scrollHistoryBottomInsetVp: 0,
+      compactHistoryEnabled: false,
+      fixedActionMenu: false
+    };
+  }
+  return {
+    calendarContentWidthRatio: 1,
+    calendarGridWidthRatio: CALENDAR_GRID_WIDTH_RATIO,
+    calendarHorizontalPaddingVp: SCROLL_CALENDAR_HORIZONTAL_PADDING_VP,
+    calendarInnerTopInsetRatio: SCROLL_CALENDAR_INNER_TOP_INSET_RATIO,
+    calendarSelectorVerticalGapVp: 6,
+    calendarGridRowGapVp: SCROLL_CALENDAR_GRID_ROW_GAP_VP,
+    calendarMonthCardTopInsetRatio: CALENDAR_MONTH_CARD_TOP_INSET_RATIO,
+    calendarTopInsetRatio: SCROLL_CALENDAR_TOP_INSET_RATIO,
+    calendarHeight: 'auto',
+    calendarBottomInsetRatio: 0.02,
+    historyTopInsetRatio: 0,
+    historyBottomInsetRatio: HISTORY_BOTTOM_INSET_RATIO,
+    scrollCalendarHistoryGapVp: 56,
+    scrollHistoryBottomInsetVp: SCROLL_HISTORY_BOTTOM_INSET_VP,
+    compactHistoryEnabled: false,
+    fixedActionMenu: true
+  };
 }
