@@ -1,14 +1,15 @@
+import { DEFAULT_THEME_ID, resolveTheme, ThemePalette } from '../domain/Theme';
+
 const IMPORT_DIALOG_HEIGHT: number = 420;
 const IMPORT_TEXT_AREA_HEIGHT: number = 148;
 const IMPORT_NOTICE_HEIGHT: number = 40;
-const ACCENT_COLOR: string = '#A95E70';
-const TEXT_COLOR: string = '#594B50';
-const MUTED_TEXT: string = '#8E7B82';
+const DEFAULT_THEME: ThemePalette = resolveTheme(DEFAULT_THEME_ID);
 
 @Component
 export struct TextImportComponent {
   @Prop textImportInput: string = '';
   @Prop textImportNotice: string = '';
+  @Prop theme: ThemePalette = DEFAULT_THEME;
   onInputChange: (value: string) => void = (_value: string): void => {};
   onLoadJson: () => void = (): void => {};
   onCancel: () => void = (): void => {};
@@ -19,7 +20,7 @@ export struct TextImportComponent {
       Column()
         .width('100%')
         .height('100%')
-        .backgroundColor('#38F1DDE1')
+        .backgroundColor(this.theme.scrim)
         .backgroundBlurStyle(BlurStyle.Thin, { scale: 0.1 })
         .onClick((): void => {})
 
@@ -28,10 +29,10 @@ export struct TextImportComponent {
           Text('导入日期')
             .fontSize(28)
             .fontWeight(FontWeight.Bold)
-            .fontColor(TEXT_COLOR)
+            .fontColor(this.theme.text)
           Text('每行输入一个经期开始日期')
             .fontSize(14)
-            .fontColor(ACCENT_COLOR)
+            .fontColor(this.theme.accent)
         }
         .alignItems(HorizontalAlign.Start)
         .width('100%')
@@ -41,10 +42,10 @@ export struct TextImportComponent {
           text: this.textImportInput
         })
           .fontSize(16)
-          .fontColor(TEXT_COLOR)
-          .placeholderColor(MUTED_TEXT)
+          .fontColor(this.theme.text)
+          .placeholderColor(this.theme.mutedText)
           .textAlign(TextAlign.Start)
-          .backgroundColor('#35FFF9FA')
+          .backgroundColor(this.theme.glassSurface)
           .borderRadius(20)
           .padding({ left: 18, right: 18, top: 16, bottom: 16 })
           .width('100%')
@@ -55,21 +56,21 @@ export struct TextImportComponent {
 
         Text('支持 -、/、. 和中文年月日分隔；年份可省略或省略前面的 20')
           .fontSize(13)
-          .fontColor(TEXT_COLOR)
+          .fontColor(this.theme.text)
           .width('100%')
 
         if (this.textImportNotice.length > 0) {
           Text(this.textImportNotice)
             .fontSize(13)
-            .fontColor(ACCENT_COLOR)
+            .fontColor(this.theme.accent)
             .width('100%')
             .maxLines(2)
         }
 
         Button('从 JSON 文件加载')
           .fontSize(15)
-          .fontColor(ACCENT_COLOR)
-          .backgroundColor('#EAD1D6')
+          .fontColor(this.theme.accent)
+          .backgroundColor(this.theme.secondaryButton)
           .borderRadius(22)
           .height(44)
           .width('100%')
@@ -81,9 +82,9 @@ export struct TextImportComponent {
         Row({ space: 14 }) {
           Button('取消')
             .fontSize(16)
-            .fontColor(ACCENT_COLOR)
-            .backgroundColor('#22FFFFFF')
-            .border({ width: 1, color: '#55FFFFFF' })
+            .fontColor(this.theme.accent)
+            .backgroundColor(this.theme.glassSurface)
+            .border({ width: 1, color: this.theme.glassBorder })
             .borderRadius(22)
             .height(44)
             .layoutWeight(1)
@@ -94,8 +95,8 @@ export struct TextImportComponent {
           Button('继续')
             .fontSize(16)
             .fontWeight(FontWeight.Medium)
-            .fontColor('#FFF9FA')
-            .backgroundColor('#D78193')
+            .fontColor(this.theme.periodText)
+            .backgroundColor(this.theme.primaryButton)
             .borderRadius(22)
             .height(44)
             .layoutWeight(1)
@@ -112,12 +113,12 @@ export struct TextImportComponent {
         : IMPORT_DIALOG_HEIGHT)
       .constraintSize({ maxWidth: 420 })
       .padding({ left: 24, right: 24, top: 24, bottom: 20 })
-      .backgroundColor('#E9FFF9FA')
+      .backgroundColor(this.theme.glassSurface)
       .backgroundBlurStyle(BlurStyle.Thin, { scale: 0.1 })
       .backgroundEffect({ radius: 28, saturation: 1.04, brightness: 1.03 })
-      .border({ width: 1, color: '#B8FFFFFF' })
+      .border({ width: 1, color: this.theme.glassBorder })
       .borderRadius(24)
-      .shadow({ radius: 28, color: '#459B7280', offsetX: 0, offsetY: 12 })
+      .shadow({ radius: 28, color: this.theme.glassShadow, offsetX: 0, offsetY: 12 })
       .transition(TransitionEffect.OPACITY
         .combine(TransitionEffect.scale({ x: 0.94, y: 0.94 }))
         .animation({ duration: 220, curve: Curve.EaseOut }))

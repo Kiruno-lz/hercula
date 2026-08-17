@@ -6,6 +6,7 @@ import jsonTransferTest from './JsonTransfer.test';
 import preferencesStoreTest from './PreferencesStore.test';
 import responsiveLayoutTest from './ResponsiveLayout.test';
 import menstrualDataTest from './MenstrualData.test';
+import themeTest from './Theme.test';
 
 export default function testsuite() {
   dateUtilsTest();
@@ -16,4 +17,5 @@ export default function testsuite() {
   preferencesStoreTest();
   responsiveLayoutTest();
   menstrualDataTest();
+  themeTest();
 }

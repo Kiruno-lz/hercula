@@ -48,6 +48,8 @@ export interface RuntimeLayoutMetrics {
   actionMenuExpandedWidthVp: number;
   actionMenuExpandedHeightVp: number;
   actionMenuItemHeightVp: number;
+  actionMenuThemeRowHeightVp: number;
+  actionMenuThemeSwatchSizeVp: number;
   actionMenuHorizontalPaddingVp: number;
   actionMenuVerticalPaddingVp: number;
   actionMenuCollapsedAnchorOffsetVp: number;
@@ -319,12 +321,14 @@ export function resolveRuntimeLayoutMetrics(
     actionMenuCollapsedSizeVp: 44,
     actionMenuIconSizeVp: 24,
     actionMenuExpandedWidthVp: 184,
-    actionMenuExpandedHeightVp: 172,
+    actionMenuExpandedHeightVp: 220,
     actionMenuItemHeightVp: 40,
+    actionMenuThemeRowHeightVp: 32,
+    actionMenuThemeSwatchSizeVp: 22,
     actionMenuHorizontalPaddingVp: 18,
     actionMenuVerticalPaddingVp: 16,
     actionMenuCollapsedAnchorOffsetVp: 140,
-    actionMenuExpandedAnchorOffsetYVp: -128,
+    actionMenuExpandedAnchorOffsetYVp: -176,
     actionMenuRightInsetRatio: ACTION_MENU_RIGHT_INSET_RATIO,
     actionMenuBottomInsetRatio: ACTION_MENU_BOTTOM_INSET_RATIO,
     compactHistoryEnabled: mode === 'compact',

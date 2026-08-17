@@ -1,10 +1,10 @@
-const PINK_BACKGROUND: string = '#F8F2F3';
-const PERIOD_COLOR: string = '#C98291';
-const ACCENT_COLOR: string = '#A95E70';
-const TEXT_COLOR: string = '#594B50';
+import { DEFAULT_THEME_ID, resolveTheme, ThemePalette } from '../domain/Theme';
+
+const DEFAULT_THEME: ThemePalette = resolveTheme(DEFAULT_THEME_ID);
 
 @Component
 export struct LoadingComponent {
+  @Prop theme: ThemePalette = DEFAULT_THEME;
   build() {
     Column({ space: 22 }) {
       Blank()
@@ -12,10 +12,10 @@ export struct LoadingComponent {
         Text('月迹')
           .fontSize(52)
           .fontWeight(FontWeight.Bold)
-          .fontColor(TEXT_COLOR)
+          .fontColor(this.theme.text)
         Text('hercula')
           .fontSize(18)
-          .fontColor(ACCENT_COLOR)
+          .fontColor(this.theme.accent)
           .letterSpacing(2)
       }
       .alignItems(HorizontalAlign.Center)
@@ -24,23 +24,23 @@ export struct LoadingComponent {
         Circle()
           .width(18)
           .height(18)
-          .fill('#E7C6CD')
-          .shadow({ radius: 8, color: '#6FC98291', offsetX: 0, offsetY: 2 })
+          .fill(this.theme.loadingSecondary)
+          .shadow({ radius: 8, color: this.theme.glassShadow, offsetX: 0, offsetY: 2 })
         Circle()
           .width(18)
           .height(18)
-          .fill(PERIOD_COLOR)
-          .shadow({ radius: 8, color: '#8FC98291', offsetX: 0, offsetY: 2 })
+          .fill(this.theme.period)
+          .shadow({ radius: 8, color: this.theme.glassShadow, offsetX: 0, offsetY: 2 })
         Circle()
           .width(18)
           .height(18)
-          .fill('#D5DEE7')
-          .shadow({ radius: 8, color: '#6F9DB3CC', offsetX: 0, offsetY: 2 })
+          .fill(this.theme.loadingContrast)
+          .shadow({ radius: 8, color: this.theme.glassShadow, offsetX: 0, offsetY: 2 })
       }
 
       Text('正在准备记录')
         .fontSize(20)
-        .fontColor(ACCENT_COLOR)
+        .fontColor(this.theme.accent)
       Blank()
     }
     .justifyContent(FlexAlign.Center)
@@ -50,7 +50,7 @@ export struct LoadingComponent {
     .radialGradient({
       center: ['50%', '46%'],
       radius: '74%',
-      colors: [['#F1DDE1', 0.0], [PINK_BACKGROUND, 1.0]]
+      colors: [[this.theme.pageBackgroundDeep, 0.0], [this.theme.pageBackground, 1.0]]
     })
   }
 }

@@ -1,9 +1,8 @@
 import { ImportValidationResult } from '../domain/ImportValidator';
+import { DEFAULT_THEME_ID, resolveTheme, ThemePalette } from '../domain/Theme';
 
 const IMPORT_DIALOG_HEIGHT: number = 420;
-const ACCENT_COLOR: string = '#A95E70';
-const TEXT_COLOR: string = '#594B50';
-const MUTED_TEXT: string = '#8E7B82';
+const DEFAULT_THEME: ThemePalette = resolveTheme(DEFAULT_THEME_ID);
 
 @Component
 export struct ImportConfirmationComponent {
@@ -15,6 +14,7 @@ export struct ImportConfirmationComponent {
     existingDates: [],
     invalidTokens: []
   };
+  @Prop theme: ThemePalette = DEFAULT_THEME;
   onBack: () => void = (): void => {};
   onConfirm: () => void = (): void => {};
 
@@ -23,7 +23,7 @@ export struct ImportConfirmationComponent {
       Column()
         .width('100%')
         .height('100%')
-        .backgroundColor('#38F1DDE1')
+        .backgroundColor(this.theme.scrim)
         .backgroundBlurStyle(BlurStyle.Thin, { scale: 0.1 })
         .onClick((): void => {})
 
@@ -32,10 +32,10 @@ export struct ImportConfirmationComponent {
           Text('确认导入')
             .fontSize(28)
             .fontWeight(FontWeight.Bold)
-            .fontColor(TEXT_COLOR)
+            .fontColor(this.theme.text)
           Text(this.importSummaryText())
             .fontSize(14)
-            .fontColor(ACCENT_COLOR)
+            .fontColor(this.theme.accent)
         }
         .alignItems(HorizontalAlign.Start)
         .width('100%')
@@ -61,7 +61,7 @@ export struct ImportConfirmationComponent {
         if (this.importValidation.invalidTokens.length > 0 || this.importValidation.futureDates.length > 0) {
           Text('无效日期和未来日期不会写入记录')
             .fontSize(13)
-            .fontColor(MUTED_TEXT)
+            .fontColor(this.theme.mutedText)
             .width('100%')
             .maxLines(2)
         }
@@ -69,9 +69,9 @@ export struct ImportConfirmationComponent {
         Row({ space: 14 }) {
           Button('返回')
             .fontSize(16)
-            .fontColor(ACCENT_COLOR)
-            .backgroundColor('#22FFFFFF')
-            .border({ width: 1, color: '#55FFFFFF' })
+            .fontColor(this.theme.accent)
+            .backgroundColor(this.theme.glassSurface)
+            .border({ width: 1, color: this.theme.glassBorder })
             .borderRadius(22)
             .height(44)
             .layoutWeight(1)
@@ -82,8 +82,8 @@ export struct ImportConfirmationComponent {
           Button(`导入 ${this.importValidation.validDates.length} 条`)
             .fontSize(16)
             .fontWeight(FontWeight.Medium)
-            .fontColor('#FFF9FA')
-            .backgroundColor('#D78193')
+            .fontColor(this.theme.periodText)
+            .backgroundColor(this.theme.primaryButton)
             .borderRadius(22)
             .height(44)
             .layoutWeight(1)
@@ -99,12 +99,12 @@ export struct ImportConfirmationComponent {
       .height(IMPORT_DIALOG_HEIGHT)
       .constraintSize({ maxWidth: 420 })
       .padding({ left: 24, right: 24, top: 24, bottom: 20 })
-      .backgroundColor('#E9FFF9FA')
+      .backgroundColor(this.theme.glassSurface)
       .backgroundBlurStyle(BlurStyle.Thin, { scale: 0.1 })
       .backgroundEffect({ radius: 28, saturation: 1.04, brightness: 1.03 })
-      .border({ width: 1, color: '#B8FFFFFF' })
+      .border({ width: 1, color: this.theme.glassBorder })
       .borderRadius(24)
-      .shadow({ radius: 28, color: '#459B7280', offsetX: 0, offsetY: 12 })
+      .shadow({ radius: 28, color: this.theme.glassShadow, offsetX: 0, offsetY: 12 })
       .transition(TransitionEffect.OPACITY
         .combine(TransitionEffect.scale({ x: 0.94, y: 0.94 }))
         .animation({ duration: 220, curve: Curve.EaseOut }))
@@ -119,17 +119,17 @@ export struct ImportConfirmationComponent {
     Row() {
       Text(value)
         .fontSize(15)
-        .fontColor(status === '无效内容' ? ACCENT_COLOR : TEXT_COLOR)
+        .fontColor(status === '无效内容' ? this.theme.accent : this.theme.text)
         .layoutWeight(1)
         .maxLines(1)
       Text(status)
         .fontSize(13)
-        .fontColor(status === '新增' ? ACCENT_COLOR : MUTED_TEXT)
+        .fontColor(status === '新增' ? this.theme.accent : this.theme.mutedText)
     }
     .padding({ left: 14, right: 14 })
     .height(38)
     .width('100%')
-    .backgroundColor(status === '新增' ? '#18FFF9FA' : '#12EAD1D6')
+    .backgroundColor(status === '新增' ? this.theme.glassSurface : this.theme.secondaryButton)
     .borderRadius(14)
   }
 

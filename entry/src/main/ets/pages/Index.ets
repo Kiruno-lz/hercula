@@ -13,8 +13,8 @@ import { LoadingComponent } from '../components/LoadingComponent';
 import { AboutComponent } from '../components/AboutComponent';
 import { TextImportComponent } from '../components/TextImportComponent';
 import { ImportConfirmationComponent } from '../components/ImportConfirmationComponent';
+import { DEFAULT_THEME_ID, resolveTheme, ThemeId, ThemePalette } from '../domain/Theme';
 
-const PINK_BACKGROUND: string = '#F8F2F3';
 const GITHUB_REPOSITORY_URL: string = 'https://github.com/Kiruno-lz/hercula';
 
 @Entry
@@ -40,6 +40,7 @@ struct Index {
     invalidTokens: []
   };
   @State private isLoading: boolean = true;
+  @State private themeId: ThemeId = DEFAULT_THEME_ID;
   @State private windowWidth: number = 1320;
   @State private windowHeight: number = 2120;
   @State private safeAreaTopInset: number = 0;
@@ -91,6 +92,7 @@ struct Index {
       }
       this.store = await PreferencesStore.open(context);
       this.markedDays = (await this.store.loadDays()).days;
+      this.themeId = (await this.store.loadTheme()).themeId;
       if (!(await this.store.hasSeenWelcome()).seen) {
         await this.store.markWelcomeShown();
         this.showWelcomeDialog();
@@ -103,6 +105,13 @@ struct Index {
 
   private showWelcomeDialog(): void {
     this.welcomeDialogOpen = true;
+  }
+
+  private async selectTheme(themeId: ThemeId): Promise<void> {
+    this.themeId = themeId;
+    if (this.store !== undefined) {
+      await this.store.saveTheme(themeId);
+    }
   }
 
   private closeWelcomeDialog(): void {
@@ -229,7 +238,7 @@ struct Index {
   build() {
     Stack() {
       if (this.isLoading) {
-        LoadingComponent()
+        LoadingComponent({ theme: this.currentTheme() })
       } else {
         ResponsivePageShell({
           markedDays: this.markedDays,
@@ -239,6 +248,8 @@ struct Index {
           safeAreaTopInset: this.safeAreaTopInset,
           safeAreaBottomInset: this.safeAreaBottomInset,
           densityPixels: this.densityPixels,
+          theme: this.currentTheme(),
+          selectedThemeId: this.themeId,
           onToggleDate: (date: string): void => {
             this.toggleDate(date);
           },
@@ -248,11 +259,15 @@ struct Index {
           },
           onAbout: (): void => {
             this.aboutDialogOpen = true;
+          },
+          onThemeChange: (themeId: ThemeId): void => {
+            this.selectTheme(themeId);
           }
         })
       }
       if (this.textImportDialogOpen) {
         TextImportComponent({
+          theme: this.currentTheme(),
           textImportInput: this.textImportInput,
           textImportNotice: this.textImportNotice,
           onInputChange: (value: string): void => {
@@ -268,6 +283,7 @@ struct Index {
       }
       if (this.importConfirmationOpen) {
         ImportConfirmationComponent({
+          theme: this.currentTheme(),
           importValidation: this.importValidation,
           onBack: (): void => this.closeImportConfirmation(),
           onConfirm: (): void => {
@@ -277,6 +293,7 @@ struct Index {
       }
       if (this.welcomeDialogOpen) {
         WelcomeComponent({
+          theme: this.currentTheme(),
           onStart: (): void => this.closeWelcomeDialog(),
           onImport: (): void => {
             this.closeWelcomeDialog();
@@ -286,6 +303,7 @@ struct Index {
       }
       if (this.aboutDialogOpen) {
         AboutComponent({
+          theme: this.currentTheme(),
           repositoryUrl: GITHUB_REPOSITORY_URL,
           onClose: (): void => {
             this.aboutDialogOpen = false;
@@ -295,7 +313,11 @@ struct Index {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor(PINK_BACKGROUND)
+    .backgroundColor(this.currentTheme().pageBackground)
+  }
+
+  private currentTheme(): ThemePalette {
+    return resolveTheme(this.themeId);
   }
 
 

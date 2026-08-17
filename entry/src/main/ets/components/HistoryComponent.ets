@@ -7,12 +7,10 @@ import {
   predictNextPeriod
 } from '../domain/MenstrualData';
 import { resolveRuntimeLayoutMetrics, RuntimeLayoutMetrics } from '../domain/ResponsiveLayout';
+import { DEFAULT_THEME_ID, resolveTheme, ThemeId, ThemePalette } from '../domain/Theme';
 
-const TEXT_COLOR: string = '#594B50';
-const PERIOD_COLOR: string = '#C98291';
-const ACCENT_COLOR: string = '#A95E70';
-const MUTED_TEXT: string = '#8E7B82';
 const DEFAULT_LAYOUT_METRICS: RuntimeLayoutMetrics = resolveRuntimeLayoutMetrics(1320, 2120);
+const DEFAULT_THEME: ThemePalette = resolveTheme(DEFAULT_THEME_ID);
 
 @Component
 export struct HistoryComponent {
@@ -22,9 +20,12 @@ export struct HistoryComponent {
   @Prop compactHistory: boolean = false;
   @Prop showActionMenu: boolean = true;
   @Prop layoutMetrics: RuntimeLayoutMetrics = DEFAULT_LAYOUT_METRICS;
+  @Prop theme: ThemePalette = DEFAULT_THEME;
+  @Prop selectedThemeId: ThemeId = DEFAULT_THEME_ID;
   onImport: () => void = (): void => {};
   onExport: () => void = (): void => {};
   onAbout: () => void = (): void => {};
+  onThemeChange: (themeId: ThemeId) => void = (_themeId: ThemeId): void => {};
 
   @State private actionMenuOpen: boolean = false;
 
@@ -67,12 +68,15 @@ export struct HistoryComponent {
             ActionMenuComponent({
               actionMenuOpen: this.actionMenuOpen,
               layoutMetrics: this.layoutMetrics,
+              theme: this.theme,
+              selectedThemeId: this.selectedThemeId,
               onOpenChange: (open: boolean): void => {
                 this.actionMenuOpen = open;
               },
               onImport: (): void => this.onImport(),
               onExport: (): void => this.onExport(),
-              onAbout: (): void => this.onAbout()
+              onAbout: (): void => this.onAbout(),
+              onThemeChange: (themeId: ThemeId): void => this.onThemeChange(themeId)
             })
           }
           .width(this.layoutMetrics.actionMenuExpandedWidthVp)
@@ -109,16 +113,16 @@ export struct HistoryComponent {
         Column({ space: 10 }) {
           Text('还没有历史记录')
             .fontSize(17)
-            .fontColor(TEXT_COLOR)
+            .fontColor(this.theme.text)
           Text('记录几天后，这里会显示经期变化')
             .fontSize(14)
-            .fontColor(MUTED_TEXT)
+            .fontColor(this.theme.mutedText)
         }
         .justifyContent(FlexAlign.Center)
         .alignItems(HorizontalAlign.Center)
         .height(200)
         .width('90%')
-        .border({ width: 3, style: BorderStyle.Dashed, color: '#D8BFC7' })
+        .border({ width: 3, style: BorderStyle.Dashed, color: this.theme.placeholderBorder })
         .borderRadius(20)
       } else {
         ForEach(this.currentPeriodsDescending(), (period: PeriodSummary) => {
@@ -138,7 +142,7 @@ export struct HistoryComponent {
         Text('月经历史')
           .fontSize(28)
           .fontWeight(FontWeight.Bold)
-          .fontColor(TEXT_COLOR)
+          .fontColor(this.theme.text)
           .layoutWeight(1)
       }
       .width('100%')
@@ -147,10 +151,10 @@ export struct HistoryComponent {
       Column({ space: this.layoutMetrics.historyPredictionGapVp }) {
         Text('下一次预计')
           .fontSize(14)
-          .fontColor(ACCENT_COLOR)
+          .fontColor(this.theme.accent)
         Text(this.currentPrediction().label)
           .fontSize(18)
-          .fontColor(TEXT_COLOR)
+          .fontColor(this.theme.text)
       }
       .alignItems(HorizontalAlign.Start)
       .width('100%')
@@ -159,14 +163,14 @@ export struct HistoryComponent {
         Column({ space: 10 }) {
           Text('还没有历史记录')
             .fontSize(17)
-            .fontColor(TEXT_COLOR)
+            .fontColor(this.theme.text)
           Text('记录几天后，这里会显示经期变化')
             .fontSize(14)
-            .fontColor(MUTED_TEXT)
+            .fontColor(this.theme.mutedText)
           Button('导入已有记录')
             .fontSize(14)
-            .fontColor(ACCENT_COLOR)
-            .backgroundColor('#EAD1D6')
+            .fontColor(this.theme.accent)
+            .backgroundColor(this.theme.secondaryButton)
             .borderRadius(20)
             .height(40)
             .padding({ left: 20, right: 20 })
@@ -177,7 +181,7 @@ export struct HistoryComponent {
         .justifyContent(FlexAlign.Center)
         .height(200)
         .width('90%')
-        .border({ width: 3, style: BorderStyle.Dashed, color: '#D8BFC7' })
+        .border({ width: 3, style: BorderStyle.Dashed, color: this.theme.placeholderBorder })
         .borderRadius(20)
       } else {
         Column({ space: this.layoutMetrics.historyPeriodsGapVp }) {
@@ -206,7 +210,7 @@ export struct HistoryComponent {
     Row({ space: 8 }) {
       Text(formatShortDate(period.startDate))
         .fontSize(12)
-        .fontColor(TEXT_COLOR)
+        .fontColor(this.theme.text)
         .width(58)
       Row({ space: 8 }) {
         Row()
@@ -214,10 +218,10 @@ export struct HistoryComponent {
           .margin({ left: this.periodBarOffset(period) })
           .width(`${this.periodRatio(period) * 82}%`)
           .borderRadius(9)
-          .backgroundColor(period.ongoing ? ACCENT_COLOR : PERIOD_COLOR)
+          .backgroundColor(period.ongoing ? this.theme.accent : this.theme.period)
         Text(period.ongoing ? '进行中' : `${period.durationDays}天`)
           .fontSize(12)
-          .fontColor(period.ongoing ? ACCENT_COLOR : TEXT_COLOR)
+          .fontColor(period.ongoing ? this.theme.accent : this.theme.text)
           .maxLines(1)
       }
       .layoutWeight(1)
@@ -233,7 +237,7 @@ export struct HistoryComponent {
       if (this.shouldShowYearDivider(period)) {
         Text(`${this.periodYear(period)}年`)
           .fontSize(12)
-          .fontColor('#B9A7AD')
+          .fontColor(this.theme.mutedText)
           .position({ x: 0, y: -14 })
       }
     }

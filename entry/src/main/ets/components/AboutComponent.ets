@@ -1,11 +1,12 @@
-const TEXT_COLOR: string = '#594B50';
-const ACCENT_COLOR: string = '#A95E70';
-const MUTED_TEXT: string = '#8E7B82';
+import { DEFAULT_THEME_ID, resolveTheme, ThemePalette } from '../domain/Theme';
+
+const DEFAULT_THEME: ThemePalette = resolveTheme(DEFAULT_THEME_ID);
 const ABOUT_DIALOG_HEIGHT: number = 390;
 
 @Component
 export struct AboutComponent {
   @Prop repositoryUrl: string = 'https://github.com/Kiruno-lz/hercula';
+  @Prop theme: ThemePalette = DEFAULT_THEME;
   onClose: () => void = (): void => {};
 
   build() {
@@ -13,7 +14,7 @@ export struct AboutComponent {
       Column()
         .width('100%')
         .height('100%')
-        .backgroundColor('#38F1DDE1')
+        .backgroundColor(this.theme.scrim)
         .backgroundBlurStyle(BlurStyle.Thin, { scale: 0.1 })
         .onClick((): void => {
           this.onClose();
@@ -26,13 +27,13 @@ export struct AboutComponent {
         Text('关于月迹')
           .fontSize(28)
           .fontWeight(FontWeight.Bold)
-          .fontColor(TEXT_COLOR)
+          .fontColor(this.theme.text)
           .textAlign(TextAlign.Center)
           .width('100%')
 
         Text('hercula · 本地隐私记录')
           .fontSize(15)
-          .fontColor(ACCENT_COLOR)
+          .fontColor(this.theme.accent)
           .textAlign(TextAlign.Center)
           .width('100%')
 
@@ -50,13 +51,13 @@ export struct AboutComponent {
 
         Text('喜欢这个项目的话，点个 Star')
           .fontSize(14)
-          .fontColor(MUTED_TEXT)
+          .fontColor(this.theme.mutedText)
           .textAlign(TextAlign.Center)
           .width('100%')
 
         Text(this.repositoryUrl)
           .fontSize(12)
-          .fontColor(ACCENT_COLOR)
+          .fontColor(this.theme.accent)
           .textAlign(TextAlign.Center)
           .width('100%')
           .maxLines(2)
@@ -65,12 +66,12 @@ export struct AboutComponent {
       .height(ABOUT_DIALOG_HEIGHT)
       .constraintSize({ maxWidth: 420 })
       .padding({ left: 28, right: 28, top: 28, bottom: 24 })
-      .backgroundColor('#E9FFF9FA')
+      .backgroundColor(this.theme.glassSurface)
       .backgroundBlurStyle(BlurStyle.Thin, { scale: 0.1 })
       .backgroundEffect({ radius: 28, saturation: 1.04, brightness: 1.03 })
-      .border({ width: 1, color: '#B8FFFFFF' })
+      .border({ width: 1, color: this.theme.glassBorder })
       .borderRadius(24)
-      .shadow({ radius: 28, color: '#459B7280', offsetX: 0, offsetY: 12 })
+      .shadow({ radius: 28, color: this.theme.glassShadow, offsetX: 0, offsetY: 12 })
       .onClick((): void => {
         this.onClose();
       })
