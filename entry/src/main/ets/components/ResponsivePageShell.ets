@@ -1,4 +1,5 @@
 import { ActionMenuComponent } from './ActionMenuComponent';
+import { ThemeBackgroundComponent } from './ThemeBackgroundComponent';
 import { MenstrualDay } from '../domain/MenstrualData';
 import { CalendarComponent } from './CalendarComponent';
 import { HistoryComponent } from './HistoryComponent';
@@ -32,6 +33,7 @@ export struct ResponsivePageShell {
 
   build() {
     Stack() {
+      ThemeBackgroundComponent({ theme: this.theme })
       if (this.layoutMetrics().mode === 'compact') {
         this.buildCompactLayout(this.layoutMetrics());
       } else if (this.layoutMetrics().mode === 'single') {
