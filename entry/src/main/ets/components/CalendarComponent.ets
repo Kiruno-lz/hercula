@@ -11,8 +11,6 @@ const DEFAULT_LAYOUT_METRICS: RuntimeLayoutMetrics = resolveRuntimeLayoutMetrics
 @Component
 export struct CalendarComponent {
   @Prop markedDays: Array<MenstrualDay> = [];
-  @Prop compact: boolean = false;
-  @Prop scrollLayout: boolean = false;
   @Prop layoutMetrics: RuntimeLayoutMetrics = DEFAULT_LAYOUT_METRICS;
   onToggleDate: (date: string) => void = (_date: string): void => {};
 
@@ -96,7 +94,7 @@ export struct CalendarComponent {
   }
 
   private formatYearLabel(year: number): string {
-    if (this.layoutMetrics.viewportWidth < 1200) {
+    if (this.layoutMetrics.viewportWidth < this.layoutMetrics.calendarYearLabelShortThresholdVp) {
       return `${String(year).slice(-2)}年`;
     }
     return `${year}`;
@@ -105,7 +103,7 @@ export struct CalendarComponent {
   @Builder
   private buildCalendarPage() {
     Column() {
-      if (!this.compact) {
+      if (this.layoutMetrics.mode !== 'compact') {
         Row() {
           Column({ space: 2 }) {
             Text('月迹')
@@ -168,7 +166,7 @@ export struct CalendarComponent {
               .animation({ duration: 240, curve: Curve.EaseOut }))
           }
         }
-        .height(this.layoutMetrics.calendarGridHeightVp)
+        .height(this.layoutMetrics.calendarGridContainerHeightVp)
         .width(`${this.layoutMetrics.calendarGridWidthRatio * 100}%`)
       }
       .padding({
@@ -189,7 +187,7 @@ export struct CalendarComponent {
     .justifyContent(FlexAlign.Start)
     .alignItems(HorizontalAlign.Center)
     .width('100%')
-    .height(this.scrollLayout ? 'auto' : '100%')
+    .height(this.layoutMetrics.calendarHeight)
     .radialGradient({
       center: ['50%', '36%'],
       radius: '68%',
@@ -269,7 +267,7 @@ export struct CalendarComponent {
     }
     .clip(true)
     .width('100%')
-    .height(this.layoutMetrics.calendarGridHeightVp)
+    .height(this.layoutMetrics.calendarGridContainerHeightVp)
     .onAreaChange((_oldValue: Area, newValue: Area): void => {
       this.calendarViewportWidth = newValue.width as number;
     })
@@ -288,7 +286,7 @@ export struct CalendarComponent {
       this.buildCalendarMonthCardA(1)
     }
     .width('100%')
-    .height(this.layoutMetrics.calendarGridHeightVp)
+    .height(this.layoutMetrics.calendarGridContainerHeightVp)
   }
 
   @Builder
@@ -299,7 +297,7 @@ export struct CalendarComponent {
       this.buildCalendarMonthCardB(1)
     }
     .width('100%')
-    .height(this.layoutMetrics.calendarGridHeightVp)
+    .height(this.layoutMetrics.calendarGridContainerHeightVp)
   }
 
   @Builder
@@ -309,7 +307,7 @@ export struct CalendarComponent {
     }
     .width('100%')
     .height(this.layoutMetrics.calendarGridHeightVp)
-    .margin({ top: `${this.layoutMetrics.calendarMonthCardTopInsetRatio * 100}%` })
+    .margin({ top: this.layoutMetrics.calendarMonthCardTopInsetVp })
     .translate({ x: offset * this.calendarViewportWidth + this.calendarDragOffset })
     .animation({ duration: this.calendarAnimationDuration, curve: Curve.EaseOut })
   }
@@ -321,7 +319,7 @@ export struct CalendarComponent {
     }
     .width('100%')
     .height(this.layoutMetrics.calendarGridHeightVp)
-    .margin({ top: `${this.layoutMetrics.calendarMonthCardTopInsetRatio * 100}%` })
+    .margin({ top: this.layoutMetrics.calendarMonthCardTopInsetVp })
     .translate({ x: offset * this.calendarViewportWidth + this.calendarDragOffset })
     .animation({ duration: this.calendarAnimationDuration, curve: Curve.EaseOut })
   }

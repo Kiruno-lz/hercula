@@ -104,6 +104,14 @@ export default function responsiveLayoutTest() {
       expect(metrics.calendarTitleFontSizeVp > 48).assertEqual(true);
     });
 
+    it('applies the dual calendar top inset ratio to available space', 0, () => {
+      const metrics = resolveRuntimeLayoutMetrics(2584, 1828, 0, 0, 3);
+      expect(metrics.mode).assertEqual('dual');
+      expect(metrics.calendarTopInsetRatio).assertEqual(0.5);
+      expect(metrics.calendarTopInsetVp > 17.1).assertEqual(true);
+      expect(metrics.calendarTopInsetVp < 17.2).assertEqual(true);
+    });
+
     it('keeps selector labels usable in compact and scroll modes', 0, () => {
       const compactMetrics = resolveRuntimeLayoutMetrics(980, 980, 0, 0, 3);
       const scrollMetrics = resolveRuntimeLayoutMetrics(1080, 2444, 0, 0, 3.125);

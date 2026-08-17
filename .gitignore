@@ -14,3 +14,5 @@ local.properties
 signingConfigs/
 build-profile.json5.signed
 .appanalyzer/
+
+.env

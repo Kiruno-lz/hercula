@@ -61,7 +61,6 @@ export struct ResponsivePageShell {
     Swiper() {
       CalendarComponent({
         markedDays: this.markedDays,
-        compact: true,
         layoutMetrics: metrics,
         onToggleDate: this.onToggleDate
       });
@@ -167,7 +166,6 @@ export struct ResponsivePageShell {
       Column({ space: metrics.scrollCalendarHistoryGapVp }) {
         CalendarComponent({
           markedDays: this.markedDays,
-          scrollLayout: true,
           layoutMetrics: metrics,
           onToggleDate: this.onToggleDate
         });

@@ -13,9 +13,12 @@ export interface RuntimeLayoutMetrics {
   calendarBottomInsetRatio: number;
   calendarInnerTopInsetRatio: number;
   calendarMonthCardTopInsetRatio: number;
+  calendarMonthCardTopInsetVp: number;
   calendarHorizontalPaddingVp: number;
   calendarContentWidthRatio: number;
   calendarGridWidthRatio: number;
+  calendarHeight: string;
+  calendarYearLabelShortThresholdVp: number;
   calendarTitleFontSizeVp: number;
   calendarSubtitleFontSizeVp: number;
   calendarSelectorVerticalGapVp: number;
@@ -25,6 +28,7 @@ export interface RuntimeLayoutMetrics {
   calendarMonthButtonWidthVp: number;
   calendarJumpPanelHeightVp: number;
   calendarGridHeightVp: number;
+  calendarGridContainerHeightVp: number;
   calendarGridRowGapVp: number;
   calendarGridColumnGapVp: number;
   calendarDateSizeVp: number;
@@ -63,14 +67,11 @@ const DUAL_MIN_RATIO: number = 1.3;
 const DUAL_MAX_RATIO: number = 1.8;
 
 // Pura X single（1320×2120）是顶部视觉留白基线。
-// 需要整体移动 single/dual/scroll 的日历时，优先调整下面的 0.35：
 // - 减小：日历整体上移；增大：日历整体下移。
 // 该值作用于 full window height，后续会扣除安全区并从 px 转换为 vp。
 const PURA_X_SINGLE_BASELINE_WIDTH: number = 1320;
 const PURA_X_SINGLE_BASELINE_HEIGHT: number = 2120;
-const PURA_X_SINGLE_BASELINE_TOP_INSET: number = PURA_X_SINGLE_BASELINE_WIDTH * 0.35;
-const PURA_X_SINGLE_TOP_INSET_RATIO: number =
-  PURA_X_SINGLE_BASELINE_TOP_INSET / PURA_X_SINGLE_BASELINE_HEIGHT;
+const PURA_X_SINGLE_TOP_INSET_RATIO: number = 0.18;
 
 // CalendarComponent 内部主内容列宽约占组件宽度的 85%。
 // dual 时 CalendarComponent 位于左右两列之一，因此还要乘以 50%。
@@ -78,13 +79,15 @@ const PURA_X_SINGLE_TOP_INSET_RATIO: number =
 const CALENDAR_CONTENT_WIDTH_RATIO: number = 0.85;
 const CALENDAR_GRID_WIDTH_RATIO: number = 0.92;
 const CALENDAR_PAGE_HORIZONTAL_PADDING_VP: number = 20;
-// scroll 下只修改下面四个数值即可微调对应视觉参数；各值仍会经过完整窗口和安全区换算。
-const SCROLL_CALENDAR_TOP_INSET_RATIO: number = 0.12;
+const DUAL_CALENDAR_TOP_INSET_RATIO: number = 0.2;
+// scroll 修改下面四个数值微调对应视觉参数
+const SCROLL_CALENDAR_TOP_INSET_RATIO: number = 0.15;
 const SCROLL_CALENDAR_HORIZONTAL_PADDING_VP: number = 17;
 const SCROLL_CALENDAR_INNER_TOP_INSET_RATIO: number = 0.12;
 const SCROLL_CALENDAR_GRID_ROW_GAP_VP: number = 3;
-const SCROLL_CALENDAR_DATE_ROW_COUNT: number = 5;
+const CALENDAR_DATE_ROW_COUNT: number = 5;
 const CALENDAR_DATE_ROW_HEIGHT_VP: number = 40;
+const SINGLE_CALENDAR_GRID_ROW_GAP_BASELINE_VP: number = 15;
 const SCROLL_HISTORY_BOTTOM_INSET_VP: number = 64;
 const HISTORY_SHORT_BAR_THRESHOLD_RATIO: number = 0.05;
 const HISTORY_SHORT_BAR_OFFSET_VP: number = 3;
@@ -93,13 +96,30 @@ const PURA_X_SINGLE_BASELINE_DENSITY_PIXELS: number = 3;
 const PURA_X_SINGLE_CALENDAR_CONTENT_WIDTH_VP: number =
   (PURA_X_SINGLE_BASELINE_WIDTH / PURA_X_SINGLE_BASELINE_DENSITY_PIXELS)
     * CALENDAR_CONTENT_WIDTH_RATIO;
+const PURA_X_SINGLE_BASELINE_PAGE_WIDTH_VP: number =
+  PURA_X_SINGLE_BASELINE_WIDTH / PURA_X_SINGLE_BASELINE_DENSITY_PIXELS;
+const PURA_X_SINGLE_BASELINE_PAGE_HEIGHT_VP: number =
+  PURA_X_SINGLE_BASELINE_HEIGHT / PURA_X_SINGLE_BASELINE_DENSITY_PIXELS;
 const CALENDAR_TITLE_BASELINE_FONT_SIZE_VP: number = 68;
 const CALENDAR_TITLE_MIN_FONT_SIZE_VP: number = 48;
 const CALENDAR_TITLE_MAX_FONT_SIZE_VP: number = 68;
-// 所有运行时统一调整 ActionMenu 的右、下边缘留白；只修改下面两个百分比数值。
+const CALENDAR_SUBTITLE_FONT_SIZE_VP: number = 24;
+const CALENDAR_SELECTOR_HEIGHT_VP: number = 38;
+const CALENDAR_DATE_SIZE_VP: number = 38;
+const CALENDAR_GRID_COLUMN_GAP_VP: number = 2;
+const CALENDAR_MONTH_CARD_TOP_INSET_RATIO: number = 0.0167;
+const CALENDAR_YEAR_LABEL_SHORT_THRESHOLD_VP: number = 1200;
+const SINGLE_CALENDAR_GRID_ROW_GAP_RATIO: number =
+  SINGLE_CALENDAR_GRID_ROW_GAP_BASELINE_VP / PURA_X_SINGLE_BASELINE_PAGE_HEIGHT_VP + 0.03;
+const DUAL_CALENDAR_GRID_ROW_GAP_RATIO: number =
+  SINGLE_CALENDAR_GRID_ROW_GAP_BASELINE_VP / PURA_X_SINGLE_BASELINE_PAGE_HEIGHT_VP;
+const PURA_X_SINGLE_MONTH_CARD_TOP_INSET_VP: number =
+  PURA_X_SINGLE_CALENDAR_CONTENT_WIDTH_VP * CALENDAR_MONTH_CARD_TOP_INSET_RATIO;
+const SINGLE_CALENDAR_MONTH_CARD_TOP_INSET_RATIO: number =
+  PURA_X_SINGLE_MONTH_CARD_TOP_INSET_VP / PURA_X_SINGLE_BASELINE_PAGE_WIDTH_VP + 0.03;
 const ACTION_MENU_RIGHT_INSET_RATIO: number = 0.08;
 const ACTION_MENU_BOTTOM_INSET_RATIO: number = 0.08;
-// 年份按钮的文本是“2026年”，必须保留单行完整显示；月份按钮保留独立的较小下限。
+// 年份按钮的文本必须保留单行完整显示；月份按钮保留独立的较小下限。
 // 宽屏按基线比例增长，窄屏不低于最小可用宽度，避免 Button 内部压缩文字。
 const CALENDAR_YEAR_BUTTON_BASELINE_WIDTH_VP: number = 86;
 const CALENDAR_MONTH_BUTTON_BASELINE_WIDTH_VP: number = 58;
@@ -107,8 +127,8 @@ const CALENDAR_YEAR_BUTTON_MIN_WIDTH_VP: number = 82;
 const CALENDAR_MONTH_BUTTON_MIN_WIDTH_VP: number = 54;
 const CALENDAR_YEAR_BUTTON_MAX_WIDTH_VP: number = 96;
 const CALENDAR_MONTH_BUTTON_MAX_WIDTH_VP: number = 66;
-const CALENDAR_INTRINSIC_HEIGHT_VP: number = 551;
 const MIN_BOTTOM_INSET_RATIO: number = 0.02;
+const CALENDAR_TITLE_COLUMN_SPACE_VP: number = 2;
 
 /**
  * Classify the page from the complete window rectangle.
@@ -133,10 +153,10 @@ export function classifyLayoutMode(width: number, height: number): PageLayoutMod
   if (ratio < SCROLL_MAX_RATIO || ratio > DUAL_MAX_RATIO) {
     return 'scroll';
   }
-  if (isStandardDualWindow(width, height, ratio) || isLargeNearSquareLandscape(width, height, ratio)) {
-    return 'dual';
+  if (isSingleDualWindow(width, height, ratio)) {
+    return 'single';
   }
-  return 'single';
+  return 'dual';
 }
 
 export function resolveRuntimeLayoutMetrics(
@@ -154,31 +174,30 @@ export function resolveRuntimeLayoutMetrics(
   const contentHeight: number = Math.max(1, (safeHeight - safeTop - safeBottom) / density);
   const mode: PageLayoutMode = classifyLayoutMode(safeWidth, safeHeight);
 
-  // 顶部留白的实际控制值是 calendarTopInsetVp，不是 calendarTopInsetRatio。
-  // single/dual/scroll 共用 Pura X 基线；compact 使用独立的紧凑顶部策略。
   const minimumBottomInset: number = Math.max(24, (safeWidth * MIN_BOTTOM_INSET_RATIO) / density);
-  const baselineTopInset: number = (safeHeight * PURA_X_SINGLE_TOP_INSET_RATIO) / density;
-  const pageTopInset: number = clamp(
-    baselineTopInset - (safeTop / density),
-    0,
-    Math.max(0, contentHeight - CALENDAR_INTRINSIC_HEIGHT_VP - minimumBottomInset)
-  );
-  const scrollTopInset: number = clamp(
-    (safeHeight * SCROLL_CALENDAR_TOP_INSET_RATIO - safeTop) / density,
-    0,
-    Math.max(0, contentHeight - CALENDAR_INTRINSIC_HEIGHT_VP - minimumBottomInset)
-  );
-  const pageBottomInset: number = Math.max(
-    minimumBottomInset,
-    contentHeight - CALENDAR_INTRINSIC_HEIGHT_VP - pageTopInset
-  );
-  const compactTopInset: number = safeWidth * 0.03;
   const viewportWidthVp: number = safeWidth / density;
-  // compact 使用完整网格宽度；scroll 和其他运行时保持原有比例，避免改变已验收的网格布局。
+  const viewportHeightVp: number = safeHeight / density;
   const calendarContentWidthRatio: number = mode === 'compact' || mode === 'scroll'
     ? 1
     : CALENDAR_CONTENT_WIDTH_RATIO;
   const calendarGridWidthRatio: number = mode === 'compact' ? 1 : CALENDAR_GRID_WIDTH_RATIO;
+  const calendarHorizontalPaddingVp: number = mode === 'scroll'
+    ? SCROLL_CALENDAR_HORIZONTAL_PADDING_VP
+    : CALENDAR_PAGE_HORIZONTAL_PADDING_VP;
+  const calendarInnerTopInsetRatio: number = mode === 'scroll'
+    ? SCROLL_CALENDAR_INNER_TOP_INSET_RATIO
+    : 0.04;
+  const calendarSelectorVerticalGapVp: number = mode === 'compact' ? 11 : 6;
+  const calendarGridRowGapVp: number = mode === 'scroll'
+    ? SCROLL_CALENDAR_GRID_ROW_GAP_VP
+    : (mode === 'single'
+      ? viewportHeightVp * SINGLE_CALENDAR_GRID_ROW_GAP_RATIO
+      : (mode === 'dual'
+        ? viewportHeightVp * DUAL_CALENDAR_GRID_ROW_GAP_RATIO
+        : (mode === 'compact' && safeHeight < COMPACT_MAX_DIMENSION ? 3 : 15)));
+  const calendarGridHeightVp: number =
+    (CALENDAR_DATE_ROW_COUNT * CALENDAR_DATE_ROW_HEIGHT_VP)
+      + ((CALENDAR_DATE_ROW_COUNT - 1) * calendarGridRowGapVp);
   const calendarComponentWidthVp: number = viewportWidthVp
     * (mode === 'dual' ? DUAL_CALENDAR_COLUMN_WIDTH_RATIO : 1)
     * calendarContentWidthRatio;
@@ -189,6 +208,48 @@ export function resolveRuntimeLayoutMetrics(
     CALENDAR_TITLE_MIN_FONT_SIZE_VP,
     CALENDAR_TITLE_MAX_FONT_SIZE_VP
   );
+  const calendarTitleHeightVp: number = mode === 'compact'
+    ? 0
+    : calendarTitleFontSizeVp + CALENDAR_SUBTITLE_FONT_SIZE_VP + CALENDAR_TITLE_COLUMN_SPACE_VP;
+  const calendarInnerTopInsetVp: number = calendarComponentWidthVp * calendarInnerTopInsetRatio;
+  const calendarMonthCardTopInsetRatio: number = mode === 'single'
+    ? SINGLE_CALENDAR_MONTH_CARD_TOP_INSET_RATIO
+    : CALENDAR_MONTH_CARD_TOP_INSET_RATIO;
+  const calendarMonthCardTopInsetVp: number = mode === 'single'
+    ? viewportWidthVp * SINGLE_CALENDAR_MONTH_CARD_TOP_INSET_RATIO
+    : calendarComponentWidthVp * CALENDAR_MONTH_CARD_TOP_INSET_RATIO;
+  const calendarGridContainerHeightVp: number = calendarGridHeightVp + calendarMonthCardTopInsetVp;
+  const calendarRequiredHeightVp: number = calendarTitleHeightVp
+    + calendarInnerTopInsetVp
+    + CALENDAR_SELECTOR_HEIGHT_VP
+    + calendarSelectorVerticalGapVp
+    + calendarGridHeightVp
+    + calendarMonthCardTopInsetVp;
+  const maximumCalendarTopInsetVp: number = Math.max(
+    0,
+    contentHeight - calendarRequiredHeightVp - minimumBottomInset
+  );
+  const baselineTopInset: number = (safeHeight * PURA_X_SINGLE_TOP_INSET_RATIO) / density;
+  const pageTopInset: number = clamp(
+    baselineTopInset - safeTop / density,
+    0,
+    maximumCalendarTopInsetVp
+  );
+  const dualTopInset: number = clamp(
+    (safeHeight * DUAL_CALENDAR_TOP_INSET_RATIO - safeTop) / density,
+    0,
+    maximumCalendarTopInsetVp
+  );
+  const scrollTopInset: number = clamp(
+    (safeHeight * SCROLL_CALENDAR_TOP_INSET_RATIO - safeTop) / density,
+    0,
+    maximumCalendarTopInsetVp
+  );
+  const pageBottomInset: number = Math.max(
+    minimumBottomInset,
+    contentHeight - calendarRequiredHeightVp - pageTopInset
+  );
+  const compactTopInset: number = safeWidth * 0.03;
   const calendarSelectorScale: number = clamp(
     calendarComponentWidthVp / PURA_X_SINGLE_CALENDAR_CONTENT_WIDTH_VP,
     0.82,
@@ -213,49 +274,35 @@ export function resolveRuntimeLayoutMetrics(
     contentHeightVp: contentHeight,
     calendarTopInsetVp: mode === 'scroll'
       ? scrollTopInset
-      : (mode === 'compact' ? compactTopInset : pageTopInset),
+      : (mode === 'compact' ? compactTopInset : (mode === 'dual' ? dualTopInset : pageTopInset)),
     calendarBottomInsetVp: mode === 'compact'
       ? minimumBottomInset
       : (mode === 'scroll' ? 0 : pageBottomInset),
-    // 这些 Ratio 字段用于表达设计基线；实际移动组件请调整上面的
-    // calendarTopInsetVp / compactTopInset，不要只改这个记录字段。
     calendarTopInsetRatio: mode === 'scroll'
       ? SCROLL_CALENDAR_TOP_INSET_RATIO
-      : (mode === 'compact' ? 0.03 : 0.25),
+      : (mode === 'compact' ? 0.03 : (mode === 'dual' ? DUAL_CALENDAR_TOP_INSET_RATIO : 0.25)),
     calendarBottomInsetRatio: 0.02,
-    calendarInnerTopInsetRatio: mode === 'scroll'
-      ? SCROLL_CALENDAR_INNER_TOP_INSET_RATIO
-      : 0.04,
-    calendarMonthCardTopInsetRatio: 0.0167,
-    // scroll 标题顶部由 calendarTopInsetVp 控制，左侧由该 padding 控制。
-    // 日期网格使用独立宽度比，避免 compact/scroll 的标记圆形被列宽裁切。
-    calendarHorizontalPaddingVp: mode === 'scroll'
-      ? SCROLL_CALENDAR_HORIZONTAL_PADDING_VP
-      : CALENDAR_PAGE_HORIZONTAL_PADDING_VP,
+    calendarInnerTopInsetRatio: calendarInnerTopInsetRatio,
+    calendarMonthCardTopInsetRatio: calendarMonthCardTopInsetRatio,
+    calendarMonthCardTopInsetVp: calendarMonthCardTopInsetVp,
+    calendarHorizontalPaddingVp: calendarHorizontalPaddingVp,
     calendarContentWidthRatio: calendarContentWidthRatio,
     calendarGridWidthRatio: calendarGridWidthRatio,
-    // compact 不渲染标题；其顶部位置由 compactTopInset 单独控制。
-    // 其他模式根据日历内容列宽缩放标题，避免窄屏 scroll/dual 挤压标题。
+    calendarHeight: mode === 'scroll' ? 'auto' : '100%',
+    calendarYearLabelShortThresholdVp: CALENDAR_YEAR_LABEL_SHORT_THRESHOLD_VP,
     calendarTitleFontSizeVp: calendarTitleFontSizeVp,
-    calendarSubtitleFontSizeVp: 24,
-    calendarSelectorVerticalGapVp: mode === 'compact' ? 11 : 6,
+    calendarSubtitleFontSizeVp: CALENDAR_SUBTITLE_FONT_SIZE_VP,
+    calendarSelectorVerticalGapVp: calendarSelectorVerticalGapVp,
     calendarSelectorHorizontalGapVp: 8,
-    calendarSelectorHeightVp: 38,
+    calendarSelectorHeightVp: CALENDAR_SELECTOR_HEIGHT_VP,
     calendarYearButtonWidthVp: calendarYearButtonWidthVp,
     calendarMonthButtonWidthVp: calendarMonthButtonWidthVp,
     calendarJumpPanelHeightVp: 183,
-    // scroll 日历没有星期标题，高度随行距变化：5 行日期 + 4 个行间距。
-    // single/dual 保持原有 360vp 的呼吸感，compact 也保留自身画布高度。
-    calendarGridHeightVp: mode === 'scroll'
-      ? (SCROLL_CALENDAR_DATE_ROW_COUNT * CALENDAR_DATE_ROW_HEIGHT_VP)
-        + ((SCROLL_CALENDAR_DATE_ROW_COUNT - 1) * SCROLL_CALENDAR_GRID_ROW_GAP_VP)
-      : 360,
-    // 仅 compact 小画布压缩日期行；single/dual/scroll 保持已验收的 15vp。
-    calendarGridRowGapVp: mode === 'scroll'
-      ? SCROLL_CALENDAR_GRID_ROW_GAP_VP
-      : (mode === 'compact' && safeHeight < COMPACT_MAX_DIMENSION ? 3 : 15),
-    calendarGridColumnGapVp: 2,
-    calendarDateSizeVp: 38,
+    calendarGridHeightVp: calendarGridHeightVp,
+    calendarGridContainerHeightVp: calendarGridContainerHeightVp,
+    calendarGridRowGapVp: calendarGridRowGapVp,
+    calendarGridColumnGapVp: CALENDAR_GRID_COLUMN_GAP_VP,
+    calendarDateSizeVp: CALENDAR_DATE_SIZE_VP,
     calendarDateRowHeightVp: CALENDAR_DATE_ROW_HEIGHT_VP,
     historyTopInsetRatio: mode === 'scroll' ? 0 : 0.0212,
     historyBottomInsetRatio: 0.0152,
@@ -293,17 +340,8 @@ function isCompactWindow(width: number, height: number, ratio: number): boolean 
     && ratio <= COMPACT_MAX_RATIO;
 }
 
-function isStandardDualWindow(width: number, height: number, ratio: number): boolean {
-  return width > COMPACT_MAX_DIMENSION
-    && height > COMPACT_MAX_DIMENSION
-    && ratio >= DUAL_MIN_RATIO
-    && ratio <= DUAL_MAX_RATIO;
-}
-
-function isLargeNearSquareLandscape(width: number, height: number, ratio: number): boolean {
-  return width > COMPACT_MAX_DIMENSION
-    && height > COMPACT_MAX_DIMENSION
-    && width > height
-    && ratio >= COMPACT_MIN_RATIO
-    && ratio <= COMPACT_MAX_RATIO;
+function isSingleDualWindow(width: number, height: number, ratio: number): boolean {
+  return width <= COMPACT_MAX_DIMENSION * 2
+    && ratio <= COMPACT_MIN_RATIO
+    && ratio >= SCROLL_MAX_RATIO;
 }
