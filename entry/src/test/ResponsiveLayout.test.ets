@@ -10,25 +10,25 @@ export default function responsiveLayoutTest() {
       expect(classifyLayoutMode(980, 980)).assertEqual('compact');
     });
 
-    it('does not classify a large near-square portrait as compact', 0, () => {
-      expect(classifyLayoutMode(2210, 2416)).assertEqual('single');
+    it('classifies a large near-square portrait as dual', 0, () => {
+      expect(classifyLayoutMode(2210, 2416)).assertEqual('dual');
     });
 
-    it('keeps a low-resolution wide window in single mode', 0, () => {
-      expect(classifyLayoutMode(980, 653)).assertEqual('single');
+    it('keeps a low-resolution wide window in dual mode', 0, () => {
+      expect(classifyLayoutMode(980, 653)).assertEqual('dual');
     });
 
     it('uses dual only when the standard ratio has enough room', 0, () => {
       expect(classifyLayoutMode(2584, 1828)).assertEqual('dual');
-      expect(classifyLayoutMode(980, 653)).assertEqual('single');
+      expect(classifyLayoutMode(980, 653)).assertEqual('dual');
     });
 
     it('supports the large near-square landscape exception', 0, () => {
       expect(classifyLayoutMode(2416, 2210)).assertEqual('dual');
     });
 
-    it('keeps the Mate X7 portrait single and its landscape dual', 0, () => {
-      expect(classifyLayoutMode(2210, 2416)).assertEqual('single');
+    it('keeps the Mate X7 portrait and landscape dual', 0, () => {
+      expect(classifyLayoutMode(2210, 2416)).assertEqual('dual');
       expect(classifyLayoutMode(2416, 2210)).assertEqual('dual');
     });
 

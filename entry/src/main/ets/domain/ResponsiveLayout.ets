@@ -190,10 +190,10 @@ export function classifyLayoutMode(width: number, height: number): PageLayoutMod
   if (ratio < SCROLL_MAX_RATIO || ratio > DUAL_MAX_RATIO) {
     return 'scroll';
   }
-  if (isSingleWindow(width, height, ratio)) {
-    return 'single';
+  if (isDualWindow(width, height, ratio)) {
+    return 'dual';
   }
-  return 'dual';
+  return 'single';
 }
 
 export function resolveRuntimeLayoutMetrics(
@@ -368,12 +368,16 @@ function isCompactWindow(width: number, height: number, ratio: number): boolean 
     && ratio <= COMPACT_MAX_RATIO;
 }
 
-function isSingleWindow(width: number, height: number, ratio: number): boolean {
-  // 中低分辨率窗口优先保持 single；只有大尺寸近方形横屏才启用 dual。
-  if (ratio < DUAL_MIN_RATIO) {
-    return !(width > 2000 && width > height && ratio >= 0.9);
+function isDualWindow(width: number, height: number, ratio: number): boolean {
+  // 标准 dual 比例直接进入双列；低分辨率不再覆盖比例判断。
+  if (ratio >= DUAL_MIN_RATIO && ratio <= DUAL_MAX_RATIO) {
+    return true;
   }
-  return width <= COMPACT_MAX_DIMENSION * 2;
+  // Mate X7 等大尺寸近方形窗口即使比例低于 1.3，也有足够宽度展示 dual。
+  return width > 2000
+    && height > 2000
+    && ratio >= COMPACT_MIN_RATIO
+    && ratio <= COMPACT_MAX_RATIO;
 }
 
 // 模式已经分类后，所有模式差异只在这里赋值；下方的公共计算只负责单位换算、
