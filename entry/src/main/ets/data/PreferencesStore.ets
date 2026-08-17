@@ -1,10 +1,12 @@
 import { preferences } from '@kit.ArkData';
 import { common } from '@kit.AbilityKit';
 import { MenstrualDay, normalizeDays } from '../domain/MenstrualData';
+import { DEFAULT_THEME_ID, normalizeThemeId, ThemeId } from '../domain/Theme';
 
 const STORE_NAME: string = 'hercula-local-data';
 const DAYS_KEY: string = 'menstrual-days';
 const WELCOME_KEY: string = 'welcome-shown';
+const THEME_KEY: string = 'theme-id';
 
 type PreferencesOperationStatus = 'success' | 'unavailable' | 'failed';
 
@@ -22,6 +24,11 @@ interface PreferencesDaysLoadResult {
 interface PreferencesWelcomeReadResult {
   status: PreferencesOperationStatus;
   seen: boolean;
+}
+
+interface PreferencesThemeReadResult {
+  status: PreferencesOperationStatus;
+  themeId: ThemeId;
 }
 
 interface PreferencesWriteResult {
@@ -126,6 +133,34 @@ export class PreferencesStore {
     }
     try {
       await this.preferencesData.put(WELCOME_KEY, true);
+      await this.preferencesData.flush();
+      return { status: 'success' };
+    } catch (_error) {
+      return { status: 'failed' };
+    }
+  }
+
+  async loadTheme(): Promise<PreferencesThemeReadResult> {
+    if (this.preferencesData === undefined) {
+      return { status: 'unavailable', themeId: DEFAULT_THEME_ID };
+    }
+    try {
+      const storedTheme: string = await this.preferencesData.get(THEME_KEY, DEFAULT_THEME_ID) as string;
+      return {
+        status: 'success',
+        themeId: normalizeThemeId(storedTheme)
+      };
+    } catch (_error) {
+      return { status: 'failed', themeId: DEFAULT_THEME_ID };
+    }
+  }
+
+  async saveTheme(themeId: ThemeId): Promise<PreferencesWriteResult> {
+    if (this.preferencesData === undefined) {
+      return { status: 'unavailable' };
+    }
+    try {
+      await this.preferencesData.put(THEME_KEY, themeId);
       await this.preferencesData.flush();
       return { status: 'success' };
     } catch (_error) {

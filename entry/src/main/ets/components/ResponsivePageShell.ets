@@ -6,8 +6,9 @@ import {
   resolveRuntimeLayoutMetrics,
   RuntimeLayoutMetrics
 } from '../domain/ResponsiveLayout';
+import { DEFAULT_THEME_ID, resolveTheme, ThemeId, ThemePalette } from '../domain/Theme';
 
-const PINK_BACKGROUND: string = '#F8F2F3';
+const DEFAULT_THEME: ThemePalette = resolveTheme(DEFAULT_THEME_ID);
 
 @Component
 export struct ResponsivePageShell {
@@ -18,10 +19,13 @@ export struct ResponsivePageShell {
   @Prop safeAreaTopInset: number = 0;
   @Prop safeAreaBottomInset: number = 0;
   @Prop densityPixels: number = 1;
+  @Prop theme: ThemePalette = DEFAULT_THEME;
+  @Prop selectedThemeId: ThemeId = DEFAULT_THEME_ID;
   onToggleDate: (date: string) => void = (_date: string): void => {};
   onImport: () => void = (): void => {};
   onExport: () => void = (): void => {};
   onAbout: () => void = (): void => {};
+  onThemeChange: (themeId: ThemeId) => void = (_themeId: ThemeId): void => {};
 
   @State private currentPage: number = 0;
   @State private scrollActionMenuOpen: boolean = false;
@@ -43,7 +47,7 @@ export struct ResponsivePageShell {
     .alignContent(Alignment.BottomEnd)
     .width('100%')
     .height('100%')
-    .backgroundColor(PINK_BACKGROUND);
+    .backgroundColor(this.theme.pageBackground);
   }
 
   private layoutMetrics(): RuntimeLayoutMetrics {
@@ -62,6 +66,7 @@ export struct ResponsivePageShell {
       CalendarComponent({
         markedDays: this.markedDays,
         layoutMetrics: metrics,
+        theme: this.theme,
         onToggleDate: this.onToggleDate
       });
       Column() {
@@ -71,9 +76,12 @@ export struct ResponsivePageShell {
           compactHistory: true,
           showActionMenu: false,
           layoutMetrics: metrics,
+          theme: this.theme,
+          selectedThemeId: this.selectedThemeId,
           onImport: this.onImport,
           onExport: this.onExport,
-          onAbout: this.onAbout
+          onAbout: this.onAbout,
+          onThemeChange: this.onThemeChange
         });
       }
       .width('100%')
@@ -91,7 +99,7 @@ export struct ResponsivePageShell {
     .cachedCount(0)
     .width('100%')
     .height('100%')
-    .backgroundColor(PINK_BACKGROUND);
+    .backgroundColor(this.theme.pageBackground);
   }
 
   @Builder
@@ -100,6 +108,7 @@ export struct ResponsivePageShell {
       CalendarComponent({
         markedDays: this.markedDays,
         layoutMetrics: metrics,
+        theme: this.theme,
         onToggleDate: this.onToggleDate
       });
       Column() {
@@ -107,9 +116,12 @@ export struct ResponsivePageShell {
           markedDays: this.markedDays,
           refreshToken: this.dataRevision,
           layoutMetrics: metrics,
+          theme: this.theme,
+          selectedThemeId: this.selectedThemeId,
           onImport: this.onImport,
           onExport: this.onExport,
-          onAbout: this.onAbout
+          onAbout: this.onAbout,
+          onThemeChange: this.onThemeChange
         });
       }
       .width('100%')
@@ -126,7 +138,7 @@ export struct ResponsivePageShell {
     .cachedCount(0)
     .width('100%')
     .height('100%')
-    .backgroundColor(PINK_BACKGROUND);
+    .backgroundColor(this.theme.pageBackground);
   }
 
   @Builder
@@ -136,6 +148,7 @@ export struct ResponsivePageShell {
         CalendarComponent({
           markedDays: this.markedDays,
           layoutMetrics: metrics,
+          theme: this.theme,
           onToggleDate: this.onToggleDate
         });
       }
@@ -147,9 +160,12 @@ export struct ResponsivePageShell {
           markedDays: this.markedDays,
           refreshToken: this.dataRevision,
           layoutMetrics: metrics,
+          theme: this.theme,
+          selectedThemeId: this.selectedThemeId,
           onImport: this.onImport,
           onExport: this.onExport,
-          onAbout: this.onAbout
+          onAbout: this.onAbout,
+          onThemeChange: this.onThemeChange
         });
       }
       .layoutWeight(1)
@@ -165,8 +181,9 @@ export struct ResponsivePageShell {
     Scroll() {
       Column({ space: metrics.scrollCalendarHistoryGapVp }) {
         CalendarComponent({
-          markedDays: this.markedDays,
-          layoutMetrics: metrics,
+        markedDays: this.markedDays,
+        layoutMetrics: metrics,
+        theme: this.theme,
           onToggleDate: this.onToggleDate
         });
         Column() {
@@ -176,9 +193,12 @@ export struct ResponsivePageShell {
             embeddedInScroll: true,
             showActionMenu: false,
             layoutMetrics: metrics,
+            theme: this.theme,
+            selectedThemeId: this.selectedThemeId,
             onImport: this.onImport,
             onExport: this.onExport,
-            onAbout: this.onAbout
+            onAbout: this.onAbout,
+            onThemeChange: this.onThemeChange
           });
         }
         .width('100%')
@@ -202,12 +222,15 @@ export struct ResponsivePageShell {
       ActionMenuComponent({
         actionMenuOpen: this.scrollActionMenuOpen,
         layoutMetrics: metrics,
+        theme: this.theme,
+        selectedThemeId: this.selectedThemeId,
         onOpenChange: (open: boolean): void => {
           this.scrollActionMenuOpen = open;
         },
         onImport: this.onImport,
         onExport: this.onExport,
-        onAbout: this.onAbout
+        onAbout: this.onAbout,
+        onThemeChange: this.onThemeChange
       });
     }
     .width(metrics.actionMenuExpandedWidthVp)

@@ -1,17 +1,16 @@
 import { MenstrualDay } from '../domain/MenstrualData';
 import { todayKey } from '../domain/DateUtils';
 import { resolveRuntimeLayoutMetrics, RuntimeLayoutMetrics } from '../domain/ResponsiveLayout';
+import { DEFAULT_THEME_ID, resolveTheme, ThemePalette } from '../domain/Theme';
 
-const PINK_BACKGROUND: string = '#F8F2F3';
-const PERIOD_COLOR: string = '#C98291';
-const ACCENT_COLOR: string = '#A95E70';
-const TEXT_COLOR: string = '#594B50';
 const DEFAULT_LAYOUT_METRICS: RuntimeLayoutMetrics = resolveRuntimeLayoutMetrics(1320, 2120);
+const DEFAULT_THEME: ThemePalette = resolveTheme(DEFAULT_THEME_ID);
 
 @Component
 export struct CalendarComponent {
   @Prop markedDays: Array<MenstrualDay> = [];
   @Prop layoutMetrics: RuntimeLayoutMetrics = DEFAULT_LAYOUT_METRICS;
+  @Prop theme: ThemePalette = DEFAULT_THEME;
   onToggleDate: (date: string) => void = (_date: string): void => {};
 
   @State private calendarDate: Date = new Date();
@@ -109,10 +108,10 @@ export struct CalendarComponent {
             Text('月迹')
               .fontSize(this.layoutMetrics.calendarTitleFontSizeVp)
               .fontWeight(FontWeight.Bold)
-              .fontColor(TEXT_COLOR)
+              .fontColor(this.theme.text)
             Text('hercula')
               .fontSize(this.layoutMetrics.calendarSubtitleFontSizeVp)
-              .fontColor(ACCENT_COLOR)
+              .fontColor(this.theme.accent)
               .letterSpacing(2)
           }
           Blank()
@@ -124,8 +123,8 @@ export struct CalendarComponent {
         Row({ space: this.layoutMetrics.calendarSelectorHorizontalGapVp }) {
           Button(this.formatYearLabel(this.calendarDate.getFullYear()))
             .fontSize(16)
-            .fontColor(TEXT_COLOR)
-            .backgroundColor('#FFF9F9')
+            .fontColor(this.theme.text)
+            .backgroundColor(this.theme.selectorBackground)
             .borderRadius(18)
             .height(this.layoutMetrics.calendarSelectorHeightVp)
             .width(this.layoutMetrics.calendarYearButtonWidthVp)
@@ -133,8 +132,8 @@ export struct CalendarComponent {
             .onClick((): void => this.toggleJumpMode('year'))
           Button(`${this.calendarDate.getMonth() + 1}月`)
             .fontSize(16)
-            .fontColor(TEXT_COLOR)
-            .backgroundColor('#FFF9F9')
+            .fontColor(this.theme.text)
+            .backgroundColor(this.theme.selectorBackground)
             .borderRadius(18)
             .height(this.layoutMetrics.calendarSelectorHeightVp)
             .width(this.layoutMetrics.calendarMonthButtonWidthVp)
@@ -155,12 +154,12 @@ export struct CalendarComponent {
             .zIndex(2)
             .width('100%')
             .height(this.layoutMetrics.calendarJumpPanelHeightVp)
-            .backgroundColor('#E8FFF9FA')
+            .backgroundColor(this.theme.glassSurface)
             .backgroundBlurStyle(BlurStyle.Thin, { scale: 0.1 })
             .backgroundEffect({ radius: 28, saturation: 1.06, brightness: 1.04 })
-            .border({ width: 1, color: '#A8FFFFFF' })
+            .border({ width: 1, color: this.theme.glassBorder })
             .borderRadius(20)
-            .shadow({ radius: 20, color: '#2F9F6270', offsetX: 0, offsetY: 8 })
+            .shadow({ radius: 20, color: this.theme.glassShadow, offsetX: 0, offsetY: 8 })
             .transition(TransitionEffect.OPACITY
               .combine(TransitionEffect.translate({ y: -18 }))
               .animation({ duration: 240, curve: Curve.EaseOut }))
@@ -191,7 +190,7 @@ export struct CalendarComponent {
     .radialGradient({
       center: ['50%', '36%'],
       radius: '68%',
-      colors: [['#F1DDE1', 0.0], [PINK_BACKGROUND, 1.0]]
+      colors: [[this.theme.pageBackgroundDeep, 0.0], [this.theme.pageBackground, 1.0]]
     })
   }
 
@@ -204,8 +203,10 @@ export struct CalendarComponent {
             Row() {
               Button(this.formatYearLabel(year))
                 .fontSize(13)
-                .fontColor(year === this.calendarDate.getFullYear() ? ACCENT_COLOR : TEXT_COLOR)
-                .backgroundColor(year === this.calendarDate.getFullYear() ? '#E9C9D0' : '#FFF9F9')
+                .fontColor(year === this.calendarDate.getFullYear() ? this.theme.accent : this.theme.text)
+                .backgroundColor(year === this.calendarDate.getFullYear()
+                  ? this.theme.selectorSelectedBackground
+                  : this.theme.selectorBackground)
                 .borderRadius(14)
                 .height(28)
                 .width('100%')
@@ -232,8 +233,10 @@ export struct CalendarComponent {
             Row() {
               Button(`${month}月`)
                 .fontSize(13)
-                .fontColor(month === this.calendarDate.getMonth() + 1 ? ACCENT_COLOR : TEXT_COLOR)
-                .backgroundColor(month === this.calendarDate.getMonth() + 1 ? '#E9C9D0' : '#FFF9F9')
+                .fontColor(month === this.calendarDate.getMonth() + 1 ? this.theme.accent : this.theme.text)
+                .backgroundColor(month === this.calendarDate.getMonth() + 1
+                  ? this.theme.selectorSelectedBackground
+                  : this.theme.selectorBackground)
                 .borderRadius(14)
                 .height(26)
                 .width('100%')
@@ -424,11 +427,11 @@ export struct CalendarComponent {
   }
 
   private dayColor(date: string): string {
-    return this.hasDate(date) ? PERIOD_COLOR : 'transparent';
+    return this.hasDate(date) ? this.theme.period : 'transparent';
   }
 
   private dayTextColor(date: string): string {
-    return this.hasDate(date) ? '#FFFFFF' : TEXT_COLOR;
+    return this.hasDate(date) ? this.theme.periodText : this.theme.text;
   }
 
   private hasDate(date: string): boolean {

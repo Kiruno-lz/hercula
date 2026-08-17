@@ -42,13 +42,18 @@ export default function preferencesStoreTest() {
       const store: PreferencesStore = PreferencesStore.fromBackend(undefined);
       const days = await store.loadDays();
       const welcome = await store.hasSeenWelcome();
+      const theme = await store.loadTheme();
       const write = await store.saveDays([]);
+      const themeWrite = await store.saveTheme('sage');
 
       expect(days.status).assertEqual('unavailable');
       expect(days.days).assertDeepEquals([]);
       expect(welcome.status).assertEqual('unavailable');
       expect(welcome.seen).assertFalse();
+      expect(theme.status).assertEqual('unavailable');
+      expect(theme.themeId).assertEqual('rose');
       expect(write.status).assertEqual('unavailable');
+      expect(themeWrite.status).assertEqual('unavailable');
     });
 
     it('reports corrupted stored days as a failed read with empty days', 0, async (): Promise<void> => {
@@ -114,6 +119,17 @@ export default function preferencesStoreTest() {
       expect(read.status).assertEqual('success');
       expect(read.seen).assertTrue();
       expect(write.status).assertEqual('success');
+    });
+
+    it('persists a supported theme and falls back for an unknown value', 0, async (): Promise<void> => {
+      const backend = new FakePreferencesBackend();
+      const store = PreferencesStore.fromBackend(backend);
+
+      expect((await store.saveTheme('indigo')).status).assertEqual('success');
+      expect((await store.loadTheme()).themeId).assertEqual('indigo');
+
+      backend.values.set('theme-id', 'unsupported');
+      expect((await store.loadTheme()).themeId).assertEqual('rose');
     });
 
   });
