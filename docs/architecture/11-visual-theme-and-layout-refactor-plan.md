@@ -147,5 +147,5 @@ ActionMenu 展开内容增加一行四个圆形主题按钮：
 - `color`：已集中四套主题色，新增主题本地持久化，并在 ActionMenu 内联展示四个圆形主题切换按钮；页面、弹层、日历、历史和 Loading 均消费统一主题对象。
 - `BulrBackground`：已增加独立的主题色圆形背景层、`BlurStyle.Thin` 覆盖和页面生命周期清理；背景层不参与滚动内容和点击命中。
 - `refactor_responsive_layout`：已将模式分类置于布局度量计算之前，并将 compact、single、dual、scroll 的配置集中到模式分支；同时固定 Mate X7 竖向/横向、低分辨率窗口、安全区和网格尺寸测试。
-- 验证：三个阶段均通过 ArkTS `assembleHap` 构建；合并前纯逻辑测试通过；Pura X 的 compact（980×980）、single（1320×2120）和 dual（2120×1320）以及 Pura 90 的 scroll（1320×2856）均完成 hdc 安装、启动和截图检查。
+- 验证：三个阶段均通过 ArkTS `assembleHap` 构建；纯逻辑测试只固定运行时分类、分辨率/折叠特例、语义开关和完整窗口尺寸，不断言 UI 像素；Pura X 的 compact（980×980）、single（1320×2120）和 dual（2120×1320）以及 Pura 90 的 scroll（1320×2856）均完成 hdc 安装、启动和截图检查。
 - 仍保留的非阻断提示：当前工程没有配置签名 profile，构建产物为未签名 HAP；这不影响本地模拟器验证。
