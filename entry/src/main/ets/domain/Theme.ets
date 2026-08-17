@@ -23,6 +23,7 @@ export interface ThemePalette {
   backgroundOrbPrimary: string;
   backgroundOrbSecondary: string;
   backgroundOrbTertiary: string;
+  backgroundBlurOverlay: string;
   loadingSecondary: string;
   loadingContrast: string;
 }
@@ -52,6 +53,7 @@ const ROSE_THEME: ThemePalette = {
   backgroundOrbPrimary: '#C9829166',
   backgroundOrbSecondary: '#E9C9D066',
   backgroundOrbTertiary: '#B9CDE566',
+  backgroundBlurOverlay: '#24FFFFFF',
   loadingSecondary: '#E7C6CD',
   loadingContrast: '#D5DEE7'
 };
@@ -79,6 +81,7 @@ const SAGE_THEME: ThemePalette = {
   backgroundOrbPrimary: '#87AA9666',
   backgroundOrbSecondary: '#C4DDCC66',
   backgroundOrbTertiary: '#B9CDE566',
+  backgroundBlurOverlay: '#24FFFFFF',
   loadingSecondary: '#C7DDCE',
   loadingContrast: '#D5DEE7'
 };
@@ -106,6 +109,7 @@ const CORAL_THEME: ThemePalette = {
   backgroundOrbPrimary: '#D4877266',
   backgroundOrbSecondary: '#EBC3B366',
   backgroundOrbTertiary: '#D8C6B966',
+  backgroundBlurOverlay: '#24FFFFFF',
   loadingSecondary: '#E7C9BD',
   loadingContrast: '#D9DDE5'
 };
@@ -133,6 +137,7 @@ const INDIGO_THEME: ThemePalette = {
   backgroundOrbPrimary: '#7F8FC166',
   backgroundOrbSecondary: '#B8C5E566',
   backgroundOrbTertiary: '#C6CBE066',
+  backgroundBlurOverlay: '#24FFFFFF',
   loadingSecondary: '#CCD3EB',
   loadingContrast: '#D5DEE7'
 };
