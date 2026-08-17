@@ -90,8 +90,15 @@ export struct HistoryComponent {
         .zIndex(5)
       }
     }
-    .width('100%')
-    .height(this.embeddedInScroll ? 'auto' : '100%')
+    .width(this.compactHistory
+      ? `${this.layoutMetrics.compactHistoryContainerRatio * 100}%`
+      : '100%')
+    .height(this.embeddedInScroll
+      ? 'auto'
+      : (this.compactHistory
+        ? `${this.layoutMetrics.compactHistoryContainerRatio * 100}%`
+        : '100%'))
+    .alignContent(this.compactHistory ? Alignment.Center : Alignment.BottomStart)
     .id(`history-content-${this.refreshToken}`)
   }
 
@@ -99,11 +106,20 @@ export struct HistoryComponent {
   private buildCompactHistoryContent() {
     Column({ space: this.layoutMetrics.historyPeriodsGapVp }) {
       if (this.currentPeriods().length === 0) {
-        Blank()
-          .height(200)
-          .width('90%')
-          .border({ width: 3, style: BorderStyle.Dashed, color: '#D8BFC7' })
-          .borderRadius(20)
+        Column({ space: 10 }) {
+          Text('还没有历史记录')
+            .fontSize(17)
+            .fontColor(TEXT_COLOR)
+          Text('记录几天后，这里会显示经期变化')
+            .fontSize(14)
+            .fontColor(MUTED_TEXT)
+        }
+        .justifyContent(FlexAlign.Center)
+        .alignItems(HorizontalAlign.Center)
+        .height(200)
+        .width('90%')
+        .border({ width: 3, style: BorderStyle.Dashed, color: '#D8BFC7' })
+        .borderRadius(20)
       } else {
         ForEach(this.currentPeriodsDescending(), (period: PeriodSummary) => {
           this.buildHistoryPeriodItem(period)

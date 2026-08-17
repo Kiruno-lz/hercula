@@ -42,6 +42,7 @@ export interface RuntimeLayoutMetrics {
   historyShortBarOffsetVp: number;
   historyPredictionGapVp: number;
   historyPeriodsGapVp: number;
+  compactHistoryContainerRatio: number;
   actionMenuCollapsedSizeVp: number;
   actionMenuIconSizeVp: number;
   actionMenuExpandedWidthVp: number;
@@ -91,6 +92,7 @@ const SINGLE_CALENDAR_GRID_ROW_GAP_BASELINE_VP: number = 15;
 const SCROLL_HISTORY_BOTTOM_INSET_VP: number = 64;
 const HISTORY_SHORT_BAR_THRESHOLD_RATIO: number = 0.05;
 const HISTORY_SHORT_BAR_OFFSET_VP: number = 3;
+const COMPACT_HISTORY_CONTAINER_RATIO: number = 0.95;
 const DUAL_CALENDAR_COLUMN_WIDTH_RATIO: number = 0.5;
 const PURA_X_SINGLE_BASELINE_DENSITY_PIXELS: number = 3;
 const PURA_X_SINGLE_CALENDAR_CONTENT_WIDTH_VP: number =
@@ -313,6 +315,7 @@ export function resolveRuntimeLayoutMetrics(
     historyShortBarOffsetVp: HISTORY_SHORT_BAR_OFFSET_VP,
     historyPredictionGapVp: 8,
     historyPeriodsGapVp: 14,
+    compactHistoryContainerRatio: COMPACT_HISTORY_CONTAINER_RATIO,
     actionMenuCollapsedSizeVp: 44,
     actionMenuIconSizeVp: 24,
     actionMenuExpandedWidthVp: 184,

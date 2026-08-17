@@ -66,6 +66,7 @@ export default function responsiveLayoutTest() {
       const metrics = resolveRuntimeLayoutMetrics(980, 980);
       expect(metrics.mode).assertEqual('compact');
       expect(metrics.compactHistoryEnabled).assertTrue();
+      expect(metrics.compactHistoryContainerRatio).assertEqual(0.95);
     });
 
     it('derives the single top inset from the Pura X baseline after safe areas', 0, () => {
