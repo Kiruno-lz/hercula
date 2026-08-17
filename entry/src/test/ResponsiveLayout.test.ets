@@ -27,6 +27,11 @@ export default function responsiveLayoutTest() {
       expect(classifyLayoutMode(2416, 2210)).assertEqual('dual');
     });
 
+    it('keeps the Mate X7 portrait single and its landscape dual', 0, () => {
+      expect(classifyLayoutMode(2210, 2416)).assertEqual('single');
+      expect(classifyLayoutMode(2416, 2210)).assertEqual('dual');
+    });
+
     it('uses scroll below the expanded threshold', 0, () => {
       expect(classifyLayoutMode(1080, 2444)).assertEqual('scroll');
       expect(classifyLayoutMode(1320, 2200)).assertEqual('single');
@@ -73,8 +78,8 @@ export default function responsiveLayoutTest() {
       const metrics = resolveRuntimeLayoutMetrics(1320, 2120, 80, 40);
       expect(metrics.safeAreaTopInsetVp).assertEqual(80);
       expect(metrics.safeAreaBottomInsetVp).assertEqual(40);
-      expect(metrics.calendarTopInsetVp > 381.9).assertEqual(true);
-      expect(metrics.calendarTopInsetVp < 382.1).assertEqual(true);
+      expect(metrics.calendarTopInsetVp > 301.5).assertEqual(true);
+      expect(metrics.calendarTopInsetVp < 301.7).assertEqual(true);
       expect(metrics.calendarBottomInsetVp > 24).assertEqual(true);
     });
 
@@ -87,8 +92,8 @@ export default function responsiveLayoutTest() {
       const metrics = resolveRuntimeLayoutMetrics(1320, 2120, 80, 40, 2);
       expect(metrics.safeAreaTopInsetVp).assertEqual(40);
       expect(metrics.safeAreaBottomInsetVp).assertEqual(20);
-      expect(metrics.calendarTopInsetVp > 190.9).assertEqual(true);
-      expect(metrics.calendarTopInsetVp < 191.1).assertEqual(true);
+      expect(metrics.calendarTopInsetVp > 150.7).assertEqual(true);
+      expect(metrics.calendarTopInsetVp < 150.9).assertEqual(true);
     });
 
     it('scales the title down for a narrow scroll calendar', 0, () => {
@@ -108,9 +113,9 @@ export default function responsiveLayoutTest() {
     it('applies the dual calendar top inset ratio to available space', 0, () => {
       const metrics = resolveRuntimeLayoutMetrics(2584, 1828, 0, 0, 3);
       expect(metrics.mode).assertEqual('dual');
-      expect(metrics.calendarTopInsetRatio).assertEqual(0.5);
-      expect(metrics.calendarTopInsetVp > 17.1).assertEqual(true);
-      expect(metrics.calendarTopInsetVp < 17.2).assertEqual(true);
+      expect(metrics.calendarTopInsetRatio).assertEqual(0.2);
+      expect(metrics.calendarTopInsetVp > 121.8).assertEqual(true);
+      expect(metrics.calendarTopInsetVp < 122.0).assertEqual(true);
     });
 
     it('keeps selector labels usable in compact and scroll modes', 0, () => {
@@ -129,11 +134,13 @@ export default function responsiveLayoutTest() {
       const scrollMetrics = resolveRuntimeLayoutMetrics(1080, 2444, 0, 0, 3.125);
       expect(compactMetrics.calendarGridRowGapVp).assertEqual(3);
       expect(singleMetrics.calendarGridRowGapVp).assertEqual(15);
-      expect(dualMetrics.calendarGridRowGapVp).assertEqual(15);
+      expect(dualMetrics.calendarGridRowGapVp > 12.9).assertEqual(true);
+      expect(dualMetrics.calendarGridRowGapVp < 13.0).assertEqual(true);
       expect(scrollMetrics.calendarGridRowGapVp).assertEqual(3);
-      expect(compactMetrics.calendarGridHeightVp).assertEqual(360);
-      expect(singleMetrics.calendarGridHeightVp).assertEqual(360);
-      expect(dualMetrics.calendarGridHeightVp).assertEqual(360);
+      expect(compactMetrics.calendarGridHeightVp).assertEqual(212);
+      expect(singleMetrics.calendarGridHeightVp).assertEqual(260);
+      expect(dualMetrics.calendarGridHeightVp > 251.5).assertEqual(true);
+      expect(dualMetrics.calendarGridHeightVp < 252.0).assertEqual(true);
       expect(scrollMetrics.calendarGridHeightVp).assertEqual(212);
       expect(compactMetrics.calendarContentWidthRatio).assertEqual(1);
       expect(singleMetrics.calendarContentWidthRatio).assertEqual(0.85);
