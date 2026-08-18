@@ -431,7 +431,7 @@ function resolveModeLayoutConfig(
     return {
       calendarContentWidthRatio: CALENDAR_CONTENT_WIDTH_RATIO,
       calendarGridWidthRatio: CALENDAR_GRID_WIDTH_RATIO,
-      calendarHorizontalPaddingVp: CALENDAR_PAGE_HORIZONTAL_PADDING_VP,
+      calendarHorizontalPaddingVp: 0,
       calendarInnerTopInsetRatio: 0.04,
       calendarSelectorVerticalGapVp: 6,
       calendarGridRowGapVp: viewportHeightVp * DUAL_CALENDAR_GRID_ROW_GAP_RATIO,
