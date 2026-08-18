@@ -48,7 +48,7 @@
 
 ### 日期派生规则有隐式输入前提
 
-`DateUtils.parseDateKey()` 会让非法日期发生 `Date` 进位，日期运算函数依赖调用方先通过 `isValidDateKey()`；`predictNextPeriod()` 依赖输入周期已按开始日升序，并在偶数间隔时取上侧中位位置。当前调用链满足这些前提，但函数签名没有表达或验证它们。
+`DateUtils.parseDateKey()` 会让非法日期发生 `Date` 进位，日期运算函数依赖调用方先通过 `isValidDateKey()`；`predictCycleForecast()` 会自行按开始日排序，使用最近最多 12 个间隔构建时间加权、核平滑的日期概率分布，并以最新开始日为锚点。排卵预测通过 `OvulationPredictionStrategy` 解耦，当前日历策略使用 14 天黄体期和 11–17 天窗口，skin temperature 仅保留后续替换边界。
 
 ### 入口与测试没有完整流程级护栏
 

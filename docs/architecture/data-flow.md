@@ -116,7 +116,7 @@ Index.markedDays
 
 统计没有专门的缓存层。`refreshToken` 和根节点 `id` 只是对 ArkUI 离屏缓存的重建信号，不是统计数据版本。
 
-`derivePeriods()` 每次从 `markedDays` 重新规范化、按日期升序、过滤未来日期并计算 `PeriodSummary`；`predictNextPeriod()` 只消费已派生的完整周期，并使用当前实现的上侧中位间隔。统计结果不写入 Preferences 或 JSON。
+`derivePeriods()` 每次从 `markedDays` 重新规范化、按日期升序、过滤未来日期并计算 `PeriodSummary`；`predictCycleForecast()` 使用最近最多 12 个周期间隔构建时间加权、核平滑的日期概率分布，以最新开始日估计下一次月经范围，并通过可替换的 `OvulationPredictionStrategy` 反推排卵窗口。`predictNextPeriod()` 将高概率日期序列转换为当前 UI 文案，统计结果不写入 Preferences 或 JSON。
 
 空状态时，历史页展示导入按钮；有历史时，操作菜单展示导入、导出和关于。两条入口最终都回调到 `Index`。
 

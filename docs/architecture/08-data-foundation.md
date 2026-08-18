@@ -123,16 +123,75 @@ normalizeDays(days)
 
 ### 2.4 `predictNextPeriod`
 
-`predictNextPeriod(periods)` 只接收已经派生出的 `PeriodSummary[]`，不读取原始日期、不读取系统时间：
+`predictNextPeriod(periods)` 只接收已经派生出的 `PeriodSummary[]`，不读取原始日期、不读取系统时间。它由 `predictCycleForecast()` 先生成周期和排卵预测，再保留当前 UI 所需的月经日期文案：
 
-1. 移除 `ongoing=true` 的最后一条或其他进行中记录；
-2. 少于 3 条完整经期时返回不可用提示；
-3. 计算完整经期开始日之间的相邻间隔；
-4. 升序排序间隔；
-5. 取 `Math.floor(length / 2)` 位置的值；
-6. 将该间隔加到最后一个完整经期开始日，生成预测文案。
+1. 将派生结果中的所有开始日按时间升序排列；
+2. 少于 3 个开始日时返回不可用提示；
+3. 取最近最多 12 个相邻开始日间隔；
+4. 用线性时间权重构建周期长度经验分布，越接近当前的间隔权重越大；
+5. 根据加权离散程度动态计算高斯核带宽，进行核平滑并归一化，提取相对峰值 60% 以上的连续日期序列；
+6. 加权平均仍作为中心周期长度，以最新一次经期开始日生成中心日期；
+7. 使用日历排卵策略，以中心月经日向前 14 天作为排卵中心，并以 11–17 天黄体期反推出排卵窗口。
 
-当前实现取的是排序后数组的上侧中位位置：当间隔数量为偶数时，不取两个中间值的平均值。函数也假设输入 `periods` 已按开始日升序排列；当前调用方 `derivePeriods()` 满足这一前提，但函数内部没有再次排序或验证。
+医学依据：黄体期不是固定 7 天，通常约为 11–17 天，平均约 14 天；当前日历策略只是透明的估算，不是医学诊断。参考 [ASRM 黄体期委员会意见](https://integration.asrm.org/globalassets/asrm/asrm-content/reproductivefacts/medicalprofessionals/clinical-relevance-of-luteal-phase-deficiency.pdf)。
+
+`OvulationPredictionStrategy` 已作为替换接口保留。当前实现使用 `calendar` 策略，`skinTemperatureSamples` 暂时为空；后续可新增 `skinTemperature` 策略消费夜间皮肤温度数据，不改变事实日期模型和 UI 调用协议。
+
+#### 日期概率模型
+
+设最近的周期长度为 (x_1,ldots,x_n)，其中 (nleq 12)，并按时间从旧到新排列。时间权重定义为：
+
+$$
+w_i=i
+$$
+
+加权中心周期长度为：
+
+$$
+\mu_w=\frac{\sum_{i=1}^{n}w_i x_i}{\sum_{i=1}^{n}w_i}
+$$
+
+加权方差和有效样本量为：
+
+$$
+s_w^2=\frac{\sum_{i=1}^{n}w_i(x_i-\mu_w)^2}{\sum_{i=1}^{n}w_i}
+$$
+
+$$
+n_{\mathrm{eff}}=\frac{(\sum_{i=1}^{n}w_i)^2}{\sum_{i=1}^{n}w_i^2}
+$$
+
+为避免小样本或周期完全相同时带宽塌缩，使用默认先验带宽 (σ_0=2) 天做收缩：
+
+$$
+s_*=\sqrt{\frac{s_w^2+\sigma_0^2}{2}}
+$$
+
+再使用 Silverman 型修正，并限制最终带宽范围：
+
+$$
+h=\operatorname{clamp}\left(1.5,\ 4.5,\ 1.06\,s_*\,n_{\mathrm{eff}}^{-1/5}\right)
+$$
+
+对候选周期长度 (d) 计算加权高斯核：
+
+$$
+q(d)=\sum_{i=1}^{n}w_i\exp\left(-\frac{(d-x_i)^2}{2h^2}\right)
+$$
+
+归一化得到日期概率：
+
+$$
+P(d)=\frac{q(d)}{\sum_{d'}q(d')}
+$$
+
+候选日期映射为“最新经期开始日 + (d) 天”。高概率日期序列使用相对峰值阈值 (τ=0.6)：
+
+$$
+H=\left\{d\mid P(d)\geq\tau\max_{d'}P(d')\right\}
+$$
+
+这里的 (P(d)) 是基于个人历史记录的模型相对概率，不应解释为医学诊断概率或绝对发生率。
 
 ## 3. 本地持久化：`PreferencesStore`
 
@@ -215,7 +274,7 @@ Index.markedDays
 - `ImportValidator.test.ets`：未来日期、已有日期、重复和问题保留；
 - `JsonTransfer.test.ets`：JSON 日期合法性和重复；
 - `TextDateParser.test.ets`：日期表达式和标准化；
-- `MenstrualData.test.ets`：未来日期在事实中保留、派生时过滤、固定日历格契约和预测中位数规则；
+- `MenstrualData.test.ets`：未来日期在事实中保留、派生时过滤、周期中位数、最新开始日锚点、排卵窗口和策略来源；
 - `DateUtils.test.ets`、`ImportPipeline.test.ets`：日期工具和 JSON 回填组合链路；
 - `PreferencesStore.test.ets`：覆盖不可用存储、损坏 JSON、读取失败、`put/flush` 失败和欢迎标记读写结果；
 - `List.test.ets`：注册上述测试入口，共 56 项通过。
@@ -235,7 +294,7 @@ Index.markedDays
 
 4. **经期时长规则集中在 `derivePeriods()`，并且使用日期间隔而非含首尾计数。** `endDate` 看起来是闭区间终点，但 `durationDays` 使用开始日到下一开始日的差值；最后一条又使用 `max(1, dayDistance(startDate, today))`。重构时不能仅根据字段名把计算改成 `+1`。
 
-5. **预测函数的输入顺序和中位数规则是隐式前提。** `predictNextPeriod()` 不排序输入，偶数个周期间隔时取上侧中位位置；当前调用方依赖 `derivePeriods()` 的升序结果。把它迁移成独立服务时若增加排序或改用平均中位数，都会改变当前结果。
+5. **预测由周期分布和排卵策略组成。** `predictCycleForecast()` 自行按开始日排序，使用最近最多 12 个间隔构建时间加权、核平滑的日期概率分布，并以最新开始日为锚点；日历排卵策略默认 14 天黄体期并保留 11–17 天窗口。后续 skin temperature 策略只能替换排卵证据来源，不能把 7 天当成固定黄体期。
 
 6. **本地存储格式没有版本边界。** `PreferencesStore` 直接把日期数组写成 JSON 字符串，没有 schemaVersion、迁移分支或损坏数据隔离；一旦字段结构变化，当前读取路径只能进入 `[]` 或保留部分可规范化数据。
 

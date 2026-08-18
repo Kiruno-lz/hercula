@@ -1,9 +1,11 @@
 import { describe, it, expect } from '@ohos/hypium';
 import {
   derivePeriods,
+  CycleForecast,
   MenstrualDay,
   normalizeDays,
   PeriodSummary,
+  predictCycleForecast,
   predictNextPeriod
 } from '../main/ets/domain/MenstrualData';
 
@@ -61,7 +63,7 @@ export default function menstrualDataTest() {
       expect(periods[0].startDate).assertEqual('2026-08-14');
     });
 
-    it('uses the upper median completed cycle length for prediction', 0, () => {
+    it('uses a time-weighted average and the latest start as the prediction anchor', 0, () => {
       const periods: Array<PeriodSummary> = [
         { startDate: '2025-01-01', endDate: '2025-01-27', durationDays: 27, ongoing: false },
         { startDate: '2025-01-29', endDate: '2025-02-25', durationDays: 28, ongoing: false },
@@ -72,16 +74,72 @@ export default function menstrualDataTest() {
       ];
       const prediction = predictNextPeriod(periods);
       expect(prediction.available).assertTrue();
-      expect(prediction.label).assertEqual('2025年6月5日左右');
+      expect(prediction.label).assertEqual('2025年7月10-19日左右');
     });
 
-    it('does not predict before three completed periods are available', 0, () => {
+    it('derives calendar ovulation from a 14-day luteal phase window', 0, () => {
+      const periods: Array<PeriodSummary> = [
+        { startDate: '2025-01-01', endDate: '2025-01-27', durationDays: 27, ongoing: false },
+        { startDate: '2025-01-29', endDate: '2025-02-25', durationDays: 28, ongoing: false },
+        { startDate: '2025-02-26', endDate: '2025-03-30', durationDays: 33, ongoing: false },
+        { startDate: '2025-03-31', endDate: '2025-05-02', durationDays: 33, ongoing: false },
+        { startDate: '2025-05-03', endDate: '2025-06-04', durationDays: 33, ongoing: false },
+        { startDate: '2025-06-10', endDate: '2025-06-10', durationDays: 1, ongoing: true }
+      ];
+      const forecast = predictCycleForecast(periods);
+
+      expect(forecast === undefined).assertFalse();
+      expect((forecast as CycleForecast).nextPeriodStartDate).assertEqual('2025-07-14');
+      expect((forecast as CycleForecast).estimatedCycleLengthDays).assertEqual(34);
+      expect((forecast as CycleForecast).probabilityBandwidthDays >= 1.5).assertTrue();
+      expect((forecast as CycleForecast).probabilityBandwidthDays <= 4.5).assertTrue();
+      expect((forecast as CycleForecast).ovulation.method).assertEqual('calendar');
+      expect((forecast as CycleForecast).ovulation.date).assertEqual('2025-06-30');
+      expect((forecast as CycleForecast).ovulation.windowStart).assertEqual('2025-06-27');
+      expect((forecast as CycleForecast).ovulation.windowEnd).assertEqual('2025-07-03');
+      expect((forecast as CycleForecast).periodProbability.length > 0).assertTrue();
+      expect((forecast as CycleForecast).highProbabilityDates[0]).assertEqual('2025-07-10');
+      expect((forecast as CycleForecast).highProbabilityDates[
+        (forecast as CycleForecast).highProbabilityDates.length - 1
+      ]).assertEqual('2025-07-19');
+      let probabilityTotal: number = 0;
+      (forecast as CycleForecast).periodProbability.forEach((item): void => {
+        probabilityTotal += item.probability;
+      });
+      expect(probabilityTotal > 0.99).assertTrue();
+      expect(probabilityTotal < 1.01).assertTrue();
+    });
+
+    it('does not predict before three period start dates are available', 0, () => {
       const periods: Array<PeriodSummary> = [
         { startDate: '2025-01-01', endDate: '2025-01-03', durationDays: 3, ongoing: false },
-        { startDate: '2025-01-29', endDate: '2025-01-31', durationDays: 3, ongoing: false },
-        { startDate: '2025-02-26', endDate: '2025-03-01', durationDays: 4, ongoing: true }
+        { startDate: '2025-01-29', endDate: '2025-01-31', durationDays: 3, ongoing: true }
       ];
       expect(predictNextPeriod(periods).available).assertFalse();
+
+      const threeStarts: Array<PeriodSummary> = periods.concat([
+        { startDate: '2025-02-26', endDate: '2025-03-01', durationDays: 4, ongoing: true }
+      ]);
+      expect(predictNextPeriod(threeStarts).available).assertTrue();
+    });
+
+    it('keeps the calendar forecast available with one or two starts', 0, () => {
+      const oneStart: Array<PeriodSummary> = [
+        { startDate: '2025-01-01', endDate: '2025-01-01', durationDays: 1, ongoing: true }
+      ];
+      const twoStarts: Array<PeriodSummary> = [
+        { startDate: '2025-01-01', endDate: '2025-01-27', durationDays: 27, ongoing: false },
+        { startDate: '2025-01-29', endDate: '2025-01-29', durationDays: 1, ongoing: true }
+      ];
+      const oneStartForecast = predictCycleForecast(oneStart);
+      const twoStartForecast = predictCycleForecast(twoStarts);
+
+      expect((oneStartForecast as CycleForecast).estimatedCycleLengthDays).assertEqual(28);
+      expect((oneStartForecast as CycleForecast).periodProbability.length > 0).assertTrue();
+      expect((twoStartForecast as CycleForecast).estimatedCycleLengthDays).assertEqual(28);
+      expect((twoStartForecast as CycleForecast).periodProbability.length > 0).assertTrue();
+      expect(predictNextPeriod(oneStart).available).assertFalse();
+      expect(predictNextPeriod(twoStarts).available).assertFalse();
     });
   });
 }
