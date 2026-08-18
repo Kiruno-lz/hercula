@@ -1,7 +1,12 @@
 import { common } from '@kit.AbilityKit';
 import { PreferencesStore } from '../data/PreferencesStore';
 import { JsonCandidateLoadResult, JsonTransfer } from '../data/JsonTransfer';
-import { MenstrualDay } from '../domain/MenstrualData';
+import {
+  derivePeriods,
+  MenstrualDay,
+  PeriodProbability,
+  predictCycleForecast
+} from '../domain/MenstrualData';
 import { todayKey } from '../domain/DateUtils';
 import { DateCandidateResult, ImportIssues } from '../domain/ImportTypes';
 import { createImportedDays, validateTextImport } from '../domain/ImportPipeline';
@@ -250,6 +255,7 @@ struct Index {
           densityPixels: this.densityPixels,
           theme: this.currentTheme(),
           selectedThemeId: this.themeId,
+          periodProbability: this.currentPeriodProbability(),
           onToggleDate: (date: string): void => {
             this.toggleDate(date);
           },
@@ -318,6 +324,22 @@ struct Index {
 
   private currentTheme(): ThemePalette {
     return resolveTheme(this.themeId);
+  }
+
+  private currentPeriodProbability(): Array<PeriodProbability> {
+    const forecast = predictCycleForecast(derivePeriods(this.markedDays, todayKey()));
+    if (forecast === undefined) {
+      return [];
+    }
+    return forecast.periodProbability
+      .slice()
+      .sort((left: PeriodProbability, right: PeriodProbability): number => {
+        return right.probability - left.probability;
+      })
+      .slice(0, 5)
+      .sort((left: PeriodProbability, right: PeriodProbability): number => {
+        return left.date < right.date ? -1 : (left.date > right.date ? 1 : 0);
+      });
   }
 
 

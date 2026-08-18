@@ -1,4 +1,4 @@
-import { MenstrualDay } from '../domain/MenstrualData';
+import { MenstrualDay, PeriodProbability } from '../domain/MenstrualData';
 import { todayKey } from '../domain/DateUtils';
 import { resolveRuntimeLayoutMetrics, RuntimeLayoutMetrics } from '../domain/ResponsiveLayout';
 import { DEFAULT_THEME_ID, resolveTheme, ThemePalette } from '../domain/Theme';
@@ -11,6 +11,7 @@ export struct CalendarComponent {
   @Prop markedDays: Array<MenstrualDay> = [];
   @Prop layoutMetrics: RuntimeLayoutMetrics = DEFAULT_LAYOUT_METRICS;
   @Prop theme: ThemePalette = DEFAULT_THEME;
+  @Prop periodProbability: Array<PeriodProbability> = [];
   onToggleDate: (date: string) => void = (_date: string): void => {};
 
   @State private calendarDate: Date = new Date();
@@ -187,11 +188,11 @@ export struct CalendarComponent {
     .alignItems(HorizontalAlign.Center)
     .width('100%')
     .height(this.layoutMetrics.calendarHeight)
-    .radialGradient({
-      center: ['50%', '36%'],
-      radius: '68%',
-      colors: [[this.theme.pageBackgroundDeep, 0.0], [this.theme.pageBackground, 1.0]]
-    })
+    // .radialGradient({
+    //   center: ['50%', '36%'],
+    //   radius: '68%',
+    //   colors: [[this.theme.pageBackgroundDeep, 0.0], [this.theme.pageBackground, 1.0]]
+    // })
   }
 
   @Builder
@@ -368,6 +369,11 @@ export struct CalendarComponent {
           .width(this.layoutMetrics.calendarDateSizeVp)
           .height(this.layoutMetrics.calendarDateSizeVp)
           .borderRadius(19)
+          .border({
+            width: this.isToday(this.calendarDayKey(offset, day)) ? 2 : 0,
+            style: BorderStyle.Dashed,
+            color: this.theme.glassShadow
+          })
           .backgroundColor(this.dayColor(this.calendarDayKey(offset, day)))
       }
       .justifyContent(FlexAlign.Center)
@@ -427,15 +433,69 @@ export struct CalendarComponent {
   }
 
   private dayColor(date: string): string {
-    return this.hasDate(date) ? this.theme.period : 'transparent';
+    if (this.hasDate(date)) {
+      return this.theme.period;
+    }
+    const probability: number | undefined = this.probabilityForDate(date);
+    if (probability === undefined) {
+      return 'transparent';
+    }
+    const maximumProbability: number = this.maximumPeriodProbability();
+    if (maximumProbability <= 0) {
+      return 'transparent';
+    }
+    const minimumProbability: number = this.minimumPeriodProbability();
+    const probabilityRange: number = maximumProbability - minimumProbability;
+    const normalizedProbability: number = probabilityRange <= 0
+      ? 1
+      : (probability - minimumProbability) / probabilityRange;
+    const normalizedOpacity: number = 0.4 + 0.6 * normalizedProbability;
+    return this.colorWithOpacity(this.theme.contrastColor, normalizedOpacity);
   }
 
   private dayTextColor(date: string): string {
-    return this.hasDate(date) ? this.theme.periodText : this.theme.text;
+    if (this.hasDate(date)) {
+      return this.theme.periodText;
+    }
+    return this.probabilityForDate(date) === undefined ? this.theme.text : this.theme.periodText;
   }
 
   private hasDate(date: string): boolean {
     return this.markedDays.some((item: MenstrualDay): boolean => item.date === date);
+  }
+
+  private isToday(date: string): boolean {
+    return date === todayKey();
+  }
+
+  private probabilityForDate(date: string): number | undefined {
+    const item: PeriodProbability | undefined = this.periodProbability.find(
+      (candidate: PeriodProbability): boolean => candidate.date === date
+    );
+    return item === undefined ? undefined : item.probability;
+  }
+
+  private maximumPeriodProbability(): number {
+    return this.periodProbability.reduce(
+      (maximum: number, item: PeriodProbability): number => Math.max(maximum, item.probability),
+      0
+    );
+  }
+
+  private minimumPeriodProbability(): number {
+    return this.periodProbability.reduce(
+      (minimum: number, item: PeriodProbability): number => Math.min(minimum, item.probability),
+      Number.MAX_VALUE
+    );
+  }
+
+  private colorWithOpacity(color: string, opacity: number): string {
+    if (color.length !== 9 || color.charAt(0) !== '#') {
+      return color;
+    }
+    const alpha: number = Math.round(Math.max(0, Math.min(1, opacity)) * 255);
+    const alphaHex: string = alpha < 16 ? `0${alpha.toString(16)}` : alpha.toString(16);
+    return `#${alphaHex}${color.substring(3)}`;
   }
 
   private isFutureDate(date: string): boolean {

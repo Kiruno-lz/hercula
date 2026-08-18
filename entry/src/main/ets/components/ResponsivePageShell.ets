@@ -1,6 +1,6 @@
 import { ActionMenuComponent } from './ActionMenuComponent';
 import { ThemeBackgroundComponent } from './ThemeBackgroundComponent';
-import { MenstrualDay } from '../domain/MenstrualData';
+import { MenstrualDay, PeriodProbability } from '../domain/MenstrualData';
 import { CalendarComponent } from './CalendarComponent';
 import { HistoryComponent } from './HistoryComponent';
 import {
@@ -22,6 +22,7 @@ export struct ResponsivePageShell {
   @Prop densityPixels: number = 1;
   @Prop theme: ThemePalette = DEFAULT_THEME;
   @Prop selectedThemeId: ThemeId = DEFAULT_THEME_ID;
+  @Prop periodProbability: Array<PeriodProbability> = [];
   onToggleDate: (date: string) => void = (_date: string): void => {};
   onImport: () => void = (): void => {};
   onExport: () => void = (): void => {};
@@ -69,6 +70,7 @@ export struct ResponsivePageShell {
         markedDays: this.markedDays,
         layoutMetrics: metrics,
         theme: this.theme,
+        periodProbability: this.periodProbability,
         onToggleDate: this.onToggleDate
       });
       Column() {
@@ -100,8 +102,7 @@ export struct ResponsivePageShell {
     // 历史页依赖 markedDays 的实时派生结果，禁止 Swiper 复用旧的离屏页面。
     .cachedCount(0)
     .width('100%')
-    .height('100%')
-    .backgroundColor(this.theme.pageBackground);
+    .height('100%');
   }
 
   @Builder
@@ -111,6 +112,7 @@ export struct ResponsivePageShell {
         markedDays: this.markedDays,
         layoutMetrics: metrics,
         theme: this.theme,
+        periodProbability: this.periodProbability,
         onToggleDate: this.onToggleDate
       });
       Column() {
@@ -139,8 +141,7 @@ export struct ResponsivePageShell {
     .indicator(false)
     .cachedCount(0)
     .width('100%')
-    .height('100%')
-    .backgroundColor(this.theme.pageBackground);
+    .height('100%');
   }
 
   @Builder
@@ -151,6 +152,7 @@ export struct ResponsivePageShell {
           markedDays: this.markedDays,
           layoutMetrics: metrics,
           theme: this.theme,
+          periodProbability: this.periodProbability,
           onToggleDate: this.onToggleDate
         });
       }
@@ -186,6 +188,7 @@ export struct ResponsivePageShell {
         markedDays: this.markedDays,
         layoutMetrics: metrics,
         theme: this.theme,
+        periodProbability: this.periodProbability,
           onToggleDate: this.onToggleDate
         });
         Column() {

@@ -32,6 +32,7 @@ CalendarComponent 不是一个通用日期选择器，而是月迹主界面的�
 | 输入 | 作用 |
 | --- | --- |
 | markedDays | 决定哪些日期显示经期标记 |
+| periodProbability | 提供下一次来潮概率最高的 5 天，用于预测窗口底色透明度 |
 | compact | compact 模式隐藏月迹/hercula 标题 |
 | scrollLayout | scroll 模式让组件高度变为 auto |
 | layoutMetrics | 提供尺寸、留白、字号和网格参数 |
@@ -131,9 +132,19 @@ calendarRenderVersion 的奇偶值决定使用 Track A 还是 Track B。A/B 两�
 1. 用 calendarDayKey 生成 YYYY-MM-DD；
 2. 用 markedDays.some 判断是否已记录；
 3. 已记录显示 PERIOD_COLOR 和白色文字；
-4. 未记录显示透明背景和正文颜色；
-5. 点击时判断是否未来；
-6. 非未来才调用 onToggleDate。
+4. 未记录但存在来潮概率时，使用主题阴影色按概率透明度显示预测窗口；
+5. 当前日期叠加主题阴影色的圆形虚线边框；
+6. 其他未记录日期显示透明背景和正文颜色；
+7. 点击时判断是否未来；
+8. 非未来才调用 onToggleDate。
+
+预测窗口颜色透明度使用：
+
+$$
+\alpha(d)=0.4+0.6\times\frac{P(d)-P_{\min}}{P_{\max}-P_{\min}}
+$$
+
+其中 \(P(d)\) 来自传入日历的 `CycleForecast.periodProbability` 最高 5 天，(P_{\min}) 和 (P_{\max}) 在这 5 天内部计算。预测窗口使用主题对比色，当前日期虚线边框仍使用主题阴影色。这只改变展示强度，不改变日期点击、记录事实或历史统计。
 
 ## 7. 日历网格的关键边界
 
