@@ -29,9 +29,13 @@ export struct ThemeBackgroundComponent {
   build() {
     Stack() {
       Circle()
-        .width('78%')
-        .height('78%')
+        .width('128%')
+        .height('128%')
         .fill(this.theme.backgroundOrbPrimary)
+        .scale({
+          x: this.orbScale(0),
+          y: this.orbScale(0)
+        })
         .translate({
           x: this.orbOffsetX(0),
           y: this.orbOffsetY(0)
@@ -39,9 +43,13 @@ export struct ThemeBackgroundComponent {
         .animation({ duration: MOTION_ANIMATION_MS, curve: Curve.EaseInOut })
 
       Circle()
-        .width('58%')
-        .height('58%')
+        .width('88%')
+        .height('88%')
         .fill(this.theme.backgroundOrbSecondary)
+        .scale({
+          x: this.orbScale(1),
+          y: this.orbScale(1)
+        })
         .translate({
           x: this.orbOffsetX(1),
           y: this.orbOffsetY(1)
@@ -49,9 +57,13 @@ export struct ThemeBackgroundComponent {
         .animation({ duration: MOTION_ANIMATION_MS + 1200, curve: Curve.EaseInOut })
 
       Circle()
-        .width('42%')
-        .height('42%')
+        .width('0%')
+        .height('0%')
         .fill(this.theme.backgroundOrbTertiary)
+        .scale({
+          x: this.orbScale(2),
+          y: this.orbScale(2)
+        })
         .translate({
           x: this.orbOffsetX(2),
           y: this.orbOffsetY(2)
@@ -60,9 +72,9 @@ export struct ThemeBackgroundComponent {
 
       Column()
         .width('100%')
-        .height('100%')
+        .height('130%')
         .backgroundColor(this.theme.backgroundBlurOverlay)
-        .backgroundBlurStyle(BlurStyle.Thin, { scale: 0.8 })
+        .backgroundBlurStyle(BlurStyle.Thick, { scale: 0.8 })
     }
     .width('100%')
     .height('100%')
@@ -75,19 +87,28 @@ export struct ThemeBackgroundComponent {
 
   private orbOffsetX(orbIndex: number): number {
     const positions: Array<Array<number>> = [
-      [-0.12, 0.08, 0.02, -0.10],
-      [0.10, -0.08, 0.12, 0.00],
-      [-0.04, 0.10, -0.10, 0.06]
+      [0.16, 0.24, 0.18, 0.10],
+      [-0.16, -0.22, -0.14, -0.08],
+      [0.00, 0.00, 0.00, 0.00]
     ];
     return this.viewportWidth * positions[orbIndex][this.motionStep];
   }
 
   private orbOffsetY(orbIndex: number): number {
     const positions: Array<Array<number>> = [
-      [0.06, -0.04, 0.08, -0.03],
-      [-0.05, 0.10, -0.02, 0.08],
-      [0.12, -0.08, 0.04, -0.06]
+      [0.12, 0.20, 0.16, 0.08],
+      [-0.12, -0.18, -0.10, -0.06],
+      [0.00, 0.00, 0.00, 0.00]
     ];
     return this.viewportHeight * positions[orbIndex][this.motionStep];
+  }
+
+  private orbScale(orbIndex: number): number {
+    const scales: Array<Array<number>> = [
+      [1.00, 1.08, 0.96, 1.04],
+      [1.00, 0.94, 1.06, 0.98],
+      [1.00, 1.03, 1.00, 0.97]
+    ];
+    return scales[orbIndex][this.motionStep];
   }
 }

@@ -8,6 +8,7 @@ export interface ThemePalette {
   text: string;
   mutedText: string;
   accent: string;
+  contrastColor: string;
   period: string;
   periodText: string;
   selectorBackground: string;
@@ -38,6 +39,7 @@ const ROSE_THEME: ThemePalette = {
   text: '#594B50',
   mutedText: '#8E7B82',
   accent: '#A95E70',
+  contrastColor: '#ffC98291',
   period: '#C98291',
   periodText: '#FFFFFF',
   selectorBackground: '#FFF9F9',
@@ -47,12 +49,12 @@ const ROSE_THEME: ThemePalette = {
   glassShadow: '#459B7280',
   scrim: '#38F1DDE1',
   primaryButton: '#D78193',
-  secondaryButton: '#EAD1D6',
+  secondaryButton: '#f3c9d2',
   placeholderBorder: '#D8BFC7',
   divider: '#28FFFFFF',
-  backgroundOrbPrimary: '#C9829166',
-  backgroundOrbSecondary: '#E9C9D066',
-  backgroundOrbTertiary: '#B9CDE566',
+  backgroundOrbPrimary: '#70D77B91',
+  backgroundOrbSecondary: '#57e29af0',
+  backgroundOrbTertiary: '#40F3E5E8',
   backgroundBlurOverlay: '#24FFFFFF',
   loadingSecondary: '#E7C6CD',
   loadingContrast: '#D5DEE7'
@@ -66,6 +68,7 @@ const SAGE_THEME: ThemePalette = {
   text: '#46534A',
   mutedText: '#84938A',
   accent: '#668875',
+  contrastColor: '#7E6f927c',
   period: '#87AA96',
   periodText: '#FFFFFF',
   selectorBackground: '#FAFDF9',
@@ -78,9 +81,9 @@ const SAGE_THEME: ThemePalette = {
   secondaryButton: '#D9E9DE',
   placeholderBorder: '#BFD3C5',
   divider: '#285F8068',
-  backgroundOrbPrimary: '#87AA9666',
-  backgroundOrbSecondary: '#C4DDCC66',
-  backgroundOrbTertiary: '#B9CDE566',
+  backgroundOrbPrimary: '#606F927C',
+  backgroundOrbSecondary: '#45D89368',
+  backgroundOrbTertiary: '#30243E36',
   backgroundBlurOverlay: '#24FFFFFF',
   loadingSecondary: '#C7DDCE',
   loadingContrast: '#D5DEE7'
@@ -94,6 +97,7 @@ const CORAL_THEME: ThemePalette = {
   text: '#5A4640',
   mutedText: '#96786D',
   accent: '#B96F5E',
+  contrastColor: '#ffd48672',
   period: '#D48772',
   periodText: '#FFFFFF',
   selectorBackground: '#FFF9F6',
@@ -106,9 +110,9 @@ const CORAL_THEME: ThemePalette = {
   secondaryButton: '#EFD5CB',
   placeholderBorder: '#D9BEB3',
   divider: '#287D5D52',
-  backgroundOrbPrimary: '#D4877266',
-  backgroundOrbSecondary: '#EBC3B366',
-  backgroundOrbTertiary: '#D8C6B966',
+  backgroundOrbPrimary: '#5069969b',
+  backgroundOrbSecondary: '#60C96F52',
+  backgroundOrbTertiary: '#35F4E6D1',
   backgroundBlurOverlay: '#24FFFFFF',
   loadingSecondary: '#E7C9BD',
   loadingContrast: '#D9DDE5'
@@ -122,6 +126,7 @@ const INDIGO_THEME: ThemePalette = {
   text: '#464B5A',
   mutedText: '#7F8498',
   accent: '#6476A9',
+  contrastColor: '#7EB69AE8',
   period: '#7F8FC1',
   periodText: '#FFFFFF',
   selectorBackground: '#FAFBFF',
@@ -134,9 +139,9 @@ const INDIGO_THEME: ThemePalette = {
   secondaryButton: '#DCE1F0',
   placeholderBorder: '#BFC7DF',
   divider: '#286875A0',
-  backgroundOrbPrimary: '#7F8FC166',
-  backgroundOrbSecondary: '#B8C5E566',
-  backgroundOrbTertiary: '#C6CBE066',
+  backgroundOrbPrimary: '#502D5B9E',
+  backgroundOrbSecondary: '#45B69AE8',
+  backgroundOrbTertiary: '#3014243A',
   backgroundBlurOverlay: '#24FFFFFF',
   loadingSecondary: '#CCD3EB',
   loadingContrast: '#D5DEE7'

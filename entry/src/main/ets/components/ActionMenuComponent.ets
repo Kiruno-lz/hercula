@@ -42,6 +42,25 @@ export struct ActionMenuComponent {
         })
 
         Column({ space: 0 }) {
+          Row({ space: 6 }) {
+            this.buildThemeSwatch('rose')
+            this.buildThemeSwatch('sage')
+            this.buildThemeSwatch('coral')
+            this.buildThemeSwatch('indigo')
+          }
+          .height(this.layoutMetrics.actionMenuThemeRowHeightVp)
+          .justifyContent(FlexAlign.End)
+          .opacity(this.actionMenuOpen ? 1 : 0)
+          .translate({ x: this.actionMenuOpen ? 0 : 14 })
+          .animation({
+            duration: ACTION_MENU_TEXT_DURATION,
+            curve: Curve.EaseOut,
+            delay: this.actionMenuOpen ? ACTION_MENU_TEXT_DELAY : 0
+          })
+          Divider()
+            .strokeWidth(1)
+            .color(this.theme.divider)
+            .width('100%')
           Button('导入日期')
             .fontSize(16)
             .fontColor(this.theme.text)
@@ -107,31 +126,6 @@ export struct ActionMenuComponent {
               this.onOpenChange(false);
               this.onAbout();
             })
-          Row({ space: 6 }) {
-            Text('主题')
-              .fontSize(12)
-              .fontColor(this.theme.mutedText)
-              .opacity(this.actionMenuOpen ? 1 : 0)
-              .translate({ x: this.actionMenuOpen ? 0 : 14 })
-              .animation({
-                duration: ACTION_MENU_TEXT_DURATION,
-                curve: Curve.EaseOut,
-                delay: this.actionMenuOpen ? ACTION_MENU_TEXT_DELAY : 0
-              })
-            this.buildThemeSwatch('rose')
-            this.buildThemeSwatch('sage')
-            this.buildThemeSwatch('coral')
-            this.buildThemeSwatch('indigo')
-          }
-          .height(this.layoutMetrics.actionMenuThemeRowHeightVp)
-          .justifyContent(FlexAlign.End)
-          .opacity(this.actionMenuOpen ? 1 : 0)
-          .translate({ x: this.actionMenuOpen ? 0 : 14 })
-          .animation({
-            duration: ACTION_MENU_TEXT_DURATION,
-            curve: Curve.EaseOut,
-            delay: this.actionMenuOpen ? ACTION_MENU_TEXT_DELAY : 0
-          })
         }
         .padding({
           left: this.layoutMetrics.actionMenuHorizontalPaddingVp,
