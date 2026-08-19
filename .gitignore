@@ -3,6 +3,7 @@
 .hvigor/
 .preview/
 .test/
+.artifacts/
 build/
 entry/build/
 oh_modules/
@@ -12,7 +13,11 @@ node_modules/
 *.app
 local.properties
 signingConfigs/
-build-profile.json5.signed
+*.signed
+*.p7b
+*.crt
+*.cer
 .appanalyzer/
 
 .env
+.DS_Store
