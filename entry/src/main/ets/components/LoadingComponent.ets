@@ -29,7 +29,7 @@ export struct LoadingComponent {
         Circle()
           .width(18)
           .height(18)
-          .fill(this.theme.period)
+          .fill(this.theme.loadingPrimary)
           .shadow({ radius: 8, color: this.theme.glassShadow, offsetX: 0, offsetY: 2 })
         Circle()
           .width(18)

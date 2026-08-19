@@ -107,7 +107,7 @@ start_window.json 是系统启动窗口配置，LoadingComponent 是 ArkUI 页�
 | validateTextImport、createImportedDays | Index.continueTextImport()、confirmImport() |
 | derivePeriods、predictNextPeriod | HistoryComponent |
 | ResponsiveLayout 导出函数 | Index、ResponsivePageShell、组件默认度量和测试 |
-| action_menu.svg | ActionMenuComponent 的 app.media.action_menu |
+| action_menu_rose.svg、action_menu_sage.svg、action_menu_coral.svg、action_menu_indigo.svg | ActionMenuComponent 按当前主题选择的展开按钮图标 |
 | 启动窗口资源 | module.json5、start_window.json |
 
 ### 4.2 当前仓库无业务调用方的对象

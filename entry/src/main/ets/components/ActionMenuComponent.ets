@@ -24,7 +24,7 @@ export struct ActionMenuComponent {
     Stack() {
       Stack() {
         Button() {
-          Image($r('app.media.action_menu'))
+          Image(this.actionMenuIconResource())
             .width(this.layoutMetrics.actionMenuIconSizeVp)
             .height(this.layoutMetrics.actionMenuIconSizeVp)
         }
@@ -189,5 +189,19 @@ export struct ActionMenuComponent {
     .onClick((): void => {
       this.onThemeChange(themeId);
     })
+  }
+
+  private actionMenuIconResource(): Resource {
+    switch (this.theme.id) {
+      case 'sage':
+        return $r('app.media.action_menu_sage');
+      case 'coral':
+        return $r('app.media.action_menu_coral');
+      case 'indigo':
+        return $r('app.media.action_menu_indigo');
+      case 'rose':
+      default:
+        return $r('app.media.action_menu_rose');
+    }
   }
 }

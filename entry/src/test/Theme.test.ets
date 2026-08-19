@@ -26,6 +26,8 @@ export default function themeTest() {
         expect(theme.pageBackground.length > 0).assertTrue();
         expect(theme.period.length > 0).assertTrue();
         expect(theme.glassSurface.length > 0).assertTrue();
+        expect(theme.welcomeBullet.length > 0).assertTrue();
+        expect(theme.loadingPrimary.length > 0).assertTrue();
       });
     });
   });

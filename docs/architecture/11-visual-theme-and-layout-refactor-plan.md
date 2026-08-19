@@ -149,3 +149,21 @@ ActionMenu 展开内容增加一行四个圆形主题按钮：
 - `refactor_responsive_layout`：已将模式分类置于布局度量计算之前，并将 compact、single、dual、scroll 的配置集中到模式分支；同时固定 Mate X7 竖向/横向、低分辨率窗口、安全区和网格尺寸测试。
 - 验证：三个阶段均通过 ArkTS `assembleHap` 构建；纯逻辑测试只固定运行时分类、分辨率/折叠特例、语义开关和完整窗口尺寸，不断言 UI 像素；Pura X 的 compact（980×980）、single（1320×2120）和 dual（2120×1320）以及 Pura 90 的 scroll（1320×2856）均完成 hdc 安装、启动和截图检查。
 - 仍保留的非阻断提示：当前工程没有配置签名 profile，构建产物为未签名 HAP；这不影响本地模拟器验证。
+
+## 8. 主题覆盖审计与静态资源边界
+
+当前 `ThemePalette` 已覆盖所有运行时 ArkUI 颜色角色：页面背景及渐变端点、主/次文字、强调色、经期标记及文字、年月选择器、玻璃面板/边框/阴影、遮罩、主次按钮、占位边框、分割线、动态背景球、背景模糊层、欢迎页提示点和 Loading 点色。日历、历史、ActionMenu、欢迎、导入、确认、关于、Loading 和页面背景均只消费这些语义色，不再从组件中读取旧的 rose 色值。
+
+ActionMenu 的 SVG 图标已拆为四个主题资源，并由 `theme.id` 选择：
+
+- `action_menu_rose.svg`
+- `action_menu_sage.svg`
+- `action_menu_coral.svg`
+- `action_menu_indigo.svg`
+
+以下资源不属于运行时主题状态，不能由用户在应用内即时切换：
+
+1. `start_window.json` 引用的 `start_window_idle.png`：它由系统在 `UIAbility` 页面树创建前展示，当前工程只有一份包内启动图；运行时主题尚未恢复，不能读取 `Preferences` 决定它的颜色。
+2. `module.json5` 与 `AppScope/app.json5` 引用的 `app_icon.svg/app_icon_full.svg`：它们是桌面和安装包图标，属于包级资源，不是页面内组件。切换它们需要重新打包或使用系统支持的动态主题/图标机制，不能在本地主题按钮点击时改变。
+
+因此本阶段的完整覆盖定义为：应用进入 ArkUI 页面后所有可见运行时颜色可切换；系统启动窗口和桌面图标保留静态 rose 基线，并明确记录为包级边界。若未来需要主题化启动图标，应在发布构建阶段生成对应产品 flavor，而不是把静态资源伪装成运行时能力。

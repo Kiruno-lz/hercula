@@ -45,7 +45,7 @@ export struct WelcomeComponent {
           Circle()
             .width(8)
             .height(8)
-            .fill(this.theme.backgroundOrbTertiary)
+            .fill(this.theme.welcomeBullet)
           Text('记录仅保存在本地')
             .fontSize(13)
             .fontColor(this.theme.mutedText)
