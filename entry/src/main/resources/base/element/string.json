@@ -2,11 +2,11 @@
   "string": [
     {
       "name": "module_desc",
-      "value": "月迹月经周期记录"
+      "value": "hercula月经周期记录"
     },
     {
       "name": "EntryAbility_desc",
-      "value": "月迹主界面"
+      "value": "hercula主界面"
     }
   ]
 }

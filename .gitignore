@@ -21,3 +21,4 @@ signingConfigs/
 
 .env
 .DS_Store
+tmp/

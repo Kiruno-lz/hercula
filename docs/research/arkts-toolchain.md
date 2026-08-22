@@ -58,7 +58,7 @@ export PATH="/Applications/DevEco-Studio.app/Contents/tools/hvigor/bin:/Applicat
 - 单个 `entry` 模块、单个 UIAbility。
 - 手机为首要设备类型；保留后续窗口尺寸适配空间。
 
-建议包名使用稳定、反向域名形式，例如 `com.hercula.app`；包名一旦发布不应随意修改。应用显示名为“月迹”，英文代号和工程标识使用 `hercula`。
+建议包名使用稳定、反向域名形式，例如 `com.hercula.app`；包名一旦发布不应随意修改。应用显示名为“月迹hercula”，英文代号和工程标识使用 `hercula`。
 
 ## 4. 首次环境验证步骤
 

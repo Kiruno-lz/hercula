@@ -181,7 +181,7 @@ struct Index {
         ? `已加载 ${candidates.dates.length} 个日期，可继续校对`
         : `已加载 ${candidates.dates.length} 个日期，另有 ${issueCount} 项待确认`;
     } catch (_error) {
-      this.textImportNotice = 'JSON 解析失败：请确认文件符合月迹 schema v1';
+      this.textImportNotice = 'JSON 解析失败：请确认文件符合hercula schema v1';
     }
   }
 
