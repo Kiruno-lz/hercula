@@ -1,0 +1,21 @@
+{
+  "name": "hercula-product-promo-demo",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "remotion studio src/index.tsx",
+    "render": "remotion render src/index.tsx HerCuLaPromo out/hercula-promo-demo.mp4",
+    "render:nobgm": "remotion render src/index.tsx HerCuLaPromo out/hercula-promo-demo-nobgm.mp4 --props=props-nobgm.json",
+    "still": "remotion still src/index.tsx HerCuLaPromo"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.484",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "remotion": "4.0.484"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.17",
+    "typescript": "6.0.3"
+  }
+}
